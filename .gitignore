@@ -48,3 +48,11 @@ Thumbs.db
 *.mov
 *.wmv
 
+_build/
+**/Output/*
+
+*.d
+*.o
+*.emSession
+*.jlink
+*.user
