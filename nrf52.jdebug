@@ -22,16 +22,16 @@ void OnProjectLoad (void) {
   // Dialog-generated settings
   //
   Project.AddPathSubstitute (".", "$(ProjectDir)");
-  Project.SetDevice ("nRF52832_xxAA");
+  Project.SetDevice ("nRF52840_xxAA");
   Project.SetHostIF ("USB", "20201111");
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
   Project.AddSvdFile ("Cortex-M4F.svd");
-  Project.AddSvdFile ("nrf52833.svd");
+  Project.AddSvdFile ("nRF5_SDK_17.1.0_ddde560\modules\nrfx\mdk\nrf52840.svd");
   //
   // User settings
   //
-  File.Open ("./_build/nrf52832_xxaa.out");
+  File.Open ("./_build/nrf52840_xxaa.out");
 }
 
 /*********************************************************************
