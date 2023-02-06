@@ -3,7 +3,7 @@
 [GENERAL]
   aATEModuleSel[24] = 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
   ConnectMode = 0
-  CurrentFile = ""
+  CurrentFile = "C:\TMP\BLE_SNIFFER\hex\sniffer_nrf52840dongle_nrf52840_4.1.1.hex"
   DataFileSAddr = 0x00000000
   GUIMode = 0
   HostName = ""
