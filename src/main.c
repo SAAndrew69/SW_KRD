@@ -1108,6 +1108,8 @@ static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const 
                 p_gatt->att_mtu_desired_periph);
 }
 
+//#define CUSTOM_MTU 219
+#define CUSTOM_MTU 231
 
 __STATIC_INLINE void init_gatt(void) {
 
@@ -1118,7 +1120,18 @@ __STATIC_INLINE void init_gatt(void) {
   err_code = nrf_ble_gatt_init(&m_gatt, handle_gatt_event);
   APP_ERROR_CHECK(err_code);
 
+  #if 0
   err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, NRF_SDH_BLE_GATT_MAX_MTU_SIZE);
+  #else
+  err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, CUSTOM_MTU);
+  #endif
+  APP_ERROR_CHECK(err_code);
+
+  #if 0
+  err_code = nrf_ble_gatt_att_mtu_central_set(&m_gatt, NRF_SDH_BLE_GATT_MAX_MTU_SIZE);
+  #else
+  err_code = nrf_ble_gatt_att_mtu_central_set(&m_gatt, CUSTOM_MTU);
+  #endif
   APP_ERROR_CHECK(err_code);
 }
 
@@ -1328,7 +1341,7 @@ __STATIC_INLINE void start_advertising(void) {
 }
 
 #define TEST_DATA_LENGTH 244
-#define BLOCKS_TO_SEND 8000UL
+#define BLOCKS_TO_SEND 10000UL
 
 static union {
   uint8_t test_data[TEST_DATA_LENGTH];
@@ -1359,6 +1372,12 @@ __STATIC_INLINE void handle_idle_state(void) {
 
     for (uint32_t i = 0; i < BLOCKS_TO_SEND; i++) {
       x.id = i;
+      for (uint32_t j = 0; j < TEST_DATA_LENGTH / 2; j++) {
+        x.test_data[j] = '0' + (i & 0x1F);
+      }
+      for (uint32_t j = TEST_DATA_LENGTH / 2; j < TEST_DATA_LENGTH; j++) {
+        x.test_data[j] = 'Z' - (i & 0x0F);
+      }
       ble_test_output(x.test_data);
     };
 

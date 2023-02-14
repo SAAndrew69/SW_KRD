@@ -3,8 +3,6 @@
 *                      The Embedded Experts                          *
 *                         www.segger.com                             *
 **********************************************************************
-
-File          : C:/SRC/sardio/nrf52.jdebug
 Ozone Version : V3.26d
 */
 
@@ -27,11 +25,12 @@ void OnProjectLoad (void) {
   Project.SetTargetIF ("SWD");
   Project.SetTIFSpeed ("4 MHz");
   Project.AddSvdFile ("Cortex-M4F.svd");
-  Project.AddSvdFile ("nRF5_SDK_17.1.0_ddde560\modules\nrfx\mdk\nrf52840.svd");
+  Project.AddSvdFile ("nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/nrf52840.svd");
   //
   // User settings
   //
-  File.Open ("./_build/nrf52840_xxaa.out");
+  //File.Open ("./_build/nrf52840_xxaa.out");
+  File.Open ("./SES/Output/Debug/Exe/CARDIO_II_52840_S140.elf");
 }
 
 /*********************************************************************

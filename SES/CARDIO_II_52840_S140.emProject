@@ -1,7 +1,22 @@
 <!DOCTYPE CrossStudio_Project_File>
 <solution Name="CARDIO_II" target="8" version="2">
+  <configuration Name="Common" build_treat_warnings_as_errors="Yes" />
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG;DEBUG_NRF"
+    gcc_c_language_standard="gnu11"
+    gcc_debugging_level="Level 3"
+    gcc_dwarf_version="dwarf-5"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="Release"
+    build_debug_information="No"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_optimization_level="Optimize For Size"
+    link_time_optimization="No" />
   <project Name="CARDIO_II_52840_S140">
     <configuration
+      LIBRARY_IO_TYPE="RTT"
       Name="Common"
       arm_architecture="v7EM"
       arm_core_type="Cortex-M4"
@@ -37,18 +52,81 @@
       macros="CMSIS_CONFIG_TOOL=../nRF5_SDK_17.1.0_ddde560/external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar"
       project_directory=""
       project_type="Executable" />
+    <configuration
+      Name="Debug"
+      analyze_after_compile="No"
+      arm_assembler_variant="gcc"
+      arm_compiler_variant="gcc"
+      arm_keep_assembly="Yes"
+      arm_linker_variant="GNU"
+      c_preprocessor_definitions="DEBUG"
+      gcc_c_language_standard="gnu17"
+      gcc_c_only_all_warnings_command_line_options=""
+      gcc_cplusplus_language_standard="gnu++20"
+      gcc_debugging_level="Level 3"
+      gcc_dwarf_version="dwarf-5"
+      gcc_enable_all_warnings="Yes" />
+    <configuration
+      Name="Release"
+      arm_linker_treat_warnings_as_errors="Yes"
+      arm_linker_variant="GNU"
+      c_preprocessor_definitions="NDEBUG;NRF_LOG_ENABLED=0"
+      gcc_c_language_standard="gnu11"
+      gcc_c_only_all_warnings_command_line_options=""
+      gcc_cplusplus_language_standard="gnu++20"
+      gcc_debugging_level="None"
+      gcc_dwarf_version="None"
+      gcc_enable_all_warnings="Yes"
+      gcc_optimization_level="Level 3 for more speed"
+      gcc_strip_symbols="Yes"
+      link_time_optimization="Yes"
+      linker_strip_debug_information="Yes" />
+    <folder Name="Application">
+      <file file_name="../src/main.c" />
+      <file file_name="../inc/sdk_config.h" />
+    </folder>
+    <folder Name="Board Definition">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/boards/boards.c" />
+    </folder>
+    <folder Name="Board Support">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp_btn_ble.c" />
+    </folder>
     <folder Name="Segger Startup Files">
-      <file file_name="$(StudioDir)/source/thumb_crt0.s" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf52840.s" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/ses_startup_nrf_common.s" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/mdk/system_nrf52840.c" />
+      <file file_name="$(StudioDir)/source/thumb_crt0.s" />
     </folder>
-    <folder Name="nRF_Log">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_backend_rtt.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_backend_serial.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_default_backends.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_frontend.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_str_formatter.c" />
+    <folder Name="UTF8/UTF16 converter">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/external/utf_converter/utf.c" />
+    </folder>
+    <folder Name="nRF_BLE">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_advdata.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_advertising/ble_advertising.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_params.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_state.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_gatt/nrf_ble_gatt.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_qwr/nrf_ble_qwr.c" />
+    </folder>
+    <folder Name="nRF_BLE_Services">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_services/ble_nus/ble_nus.c" />
+    </folder>
+    <folder Name="nRF_Drivers">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_clock.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_twi.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_uart.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_atomic.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_clock.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_gpiote.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/prs/nrfx_prs.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_rtc.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_spim.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_twim.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uart.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uarte.c" />
     </folder>
     <folder Name="nRF_Libraries">
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/button/app_button.c" />
@@ -77,102 +155,25 @@
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/strerror/nrf_strerror.c" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/uart/retarget.c" />
     </folder>
-    <folder Name="Board Definition">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/boards/boards.c" />
-    </folder>
-    <folder Name="nRF_Drivers">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_clock.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_uart.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/soc/nrfx_atomic.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_clock.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_gpiote.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/prs/nrfx_prs.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uart.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_uarte.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_spim.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_twim.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/integration/nrfx/legacy/nrf_drv_twi.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/modules/nrfx/drivers/src/nrfx_rtc.c" />
-    </folder>
-    <folder Name="Board Support">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/bsp/bsp_btn_ble.c" />
+    <folder Name="nRF_Log">
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_backend_rtt.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_backend_serial.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_default_backends.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_frontend.c" />
+      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/libraries/log/src/nrf_log_str_formatter.c" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="../nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT.c" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/external/segger_rtt/SEGGER_RTT_printf.c" />
     </folder>
-    <folder Name="nRF_BLE">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_advdata.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_advertising/ble_advertising.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_params.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_conn_state.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/common/ble_srv_common.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_gatt/nrf_ble_gatt.c" />
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/nrf_ble_qwr/nrf_ble_qwr.c" />
-    </folder>
-    <folder Name="UTF8/UTF16 converter">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/external/utf_converter/utf.c" />
-    </folder>
-    <folder Name="nRF_BLE_Services">
-      <file file_name="../nRF5_SDK_17.1.0_ddde560/components/ble/ble_services/ble_nus/ble_nus.c" />
-    </folder>
     <folder Name="nRF_SoftDevice">
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh.c" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh_ble.c" />
       <file file_name="../nRF5_SDK_17.1.0_ddde560/components/softdevice/common/nrf_sdh_soc.c" />
     </folder>
-    <configuration
-      Name="Debug"
-      analyze_after_compile="No"
-      arm_assembler_variant="clang"
-      arm_compiler_variant="gcc"
-      arm_keep_assembly="Yes"
-      arm_linker_variant="GNU"
-      c_preprocessor_definitions="DEBUG"
-      gcc_c_language_standard="gnu17"
-      gcc_c_only_all_warnings_command_line_options=""
-      gcc_cplusplus_language_standard="gnu++20"
-      gcc_debugging_level="Level 3"
-      gcc_dwarf_version="dwarf-5"
-      gcc_enable_all_warnings="Yes" />
-    <file file_name="../inc/main.h" />
     <file file_name="../inc/acquire.h" />
     <file file_name="datetime.h" />
-    <configuration
-      Name="Release"
-      arm_linker_treat_warnings_as_errors="Yes"
-      arm_linker_variant="GNU"
-      c_preprocessor_definitions="NDEBUG;NRF_LOG_ENABLED=0"
-      gcc_c_language_standard="gnu11"
-      gcc_c_only_all_warnings_command_line_options=""
-      gcc_cplusplus_language_standard="gnu++20"
-      gcc_debugging_level="None"
-      gcc_dwarf_version="None"
-      gcc_enable_all_warnings="Yes"
-      gcc_optimization_level="Level 3 for more speed"
-      gcc_strip_symbols="Yes"
-      link_time_optimization="Yes"
-      linker_strip_debug_information="Yes" />
-    <folder Name="Application">
-      <file file_name="../inc/sdk_config.h" />
-      <file file_name="../src/main.c" />
-    </folder>
+    <file file_name="../inc/main.h" />
   </project>
-  <configuration
-    Name="Release"
-    build_debug_information="No"
-    c_preprocessor_definitions="NDEBUG"
-    gcc_optimization_level="Optimize For Size"
-    link_time_optimization="No" />
-  <configuration
-    Name="Debug"
-    c_preprocessor_definitions="DEBUG;DEBUG_NRF"
-    gcc_c_language_standard="gnu11"
-    gcc_debugging_level="Level 3"
-    gcc_dwarf_version="dwarf-5"
-    gcc_optimization_level="None" />
-  <configuration Name="Common" build_treat_warnings_as_errors="Yes" />
 </solution>

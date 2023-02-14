@@ -39,15 +39,15 @@
 
 #include "nrf_gpio.h"
 
-#define DEVICE_NAME                     "CARDIUART"                       /* Name of device. Will be included in the advertising data.                                       */
+#define DEVICE_NAME                     "CARDIOGLB_18"                       /* Name of device. Will be included in the advertising data.                                       */
 
 #if defined(__CROSSWORKS_ARM) || defined(__SES_ARM)
-  #define DEVICE_SERIAL_NO              "SPG-002-%08X-%08X"
+  #define DEVICE_SERIAL_NO              "SPG-020-%08X-%08X"
 #else
-  #define DEVICE_SERIAL_NO              "SPG-001-%08lX-%08lX"
+  #define DEVICE_SERIAL_NO              "SPG-020-%08lX-%08lX"
 #endif
 
-#define DEVICE_FIRMWARE_VERSION         "0.0.3a"
+#define DEVICE_FIRMWARE_VERSION         "0.0.4"
 
 #define APP_BLE_CONN_CFG_TAG            1                                 /* A tag identifying the SoftDevice BLE configuration.                                             */
 #define APP_BLE_OBSERVER_PRIO           3                                 /* Application's BLE observer priority. You shouldn't need to modify this value.                   */

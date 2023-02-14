@@ -6,7 +6,10 @@ SDK_ROOT := nRF5_SDK_17.1.0_ddde560
 PROJ_DIR := .
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
-  LINKER_SCRIPT  := ./nrf52_gcc.ld
+  #LINKER_SCRIPT := ./nrf52840_xxaa.ld
+  #LINKER_SCRIPT := $(SDK_ROOT)/modules/nrfx/mdk/nrf52840_xxaa.ld
+  #LINKER_SCRIPT  := ./nrf52_gcc.ld
+  LINKER_SCRIPT  := ./CARDIO_II_52840_S140.ld
 
 # Source files common to all targets
 SRC_FILES += \
@@ -215,7 +218,13 @@ INC_FOLDERS += \
 LIB_FILES += \
 
 # Optimization flags
-OPT = -O3 -g3
+
+ifeq ($(DEBUG), 1)
+  OPT = -g3 -Og -gdwarf-4 -DDEBUG
+else
+  OPT = -g0 -Ofast -flto -DNDEBUG -DNRF_LOG_ENABLED=0
+endif
+
 # Uncomment the line below to enable link time optimization
 #OPT += -flto
 
@@ -271,7 +280,8 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker dump unused sections
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
-LDFLAGS += --specs=nano.specs
+#LDFLAGS += --specs=nano.specs
+LDFLAGS += --specs=nosys.specs
 
 nrf52840_xxaa: CFLAGS += -D__HEAP_SIZE=8192
 nrf52840_xxaa: CFLAGS += -D__STACK_SIZE=8192

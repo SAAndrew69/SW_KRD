@@ -1,3 +1,4 @@
-GNU_INSTALL_ROOT := C:/Program Files (x86)/GNU Arm Embedded Toolchain/10 2021.10/bin/
-GNU_VERSION := 10.3.1
+#GNU_INSTALL_ROOT := C:/Program Files (x86)/GNU Arm Embedded Toolchain/10 2021.10/bin/
+GNU_INSTALL_ROOT := C:/Program Files (x86)/GNU Arm Embedded Toolchain/12.2 2022.08/bin/
+GNU_VERSION := 12.2.1
 GNU_PREFIX := arm-none-eabi
