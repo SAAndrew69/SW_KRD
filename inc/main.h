@@ -39,6 +39,8 @@
 
 #include "nrf_gpio.h"
 
+#include "ads1298.h"
+
 #define DEVICE_NAME                     "CARDIOGLB_18"                       /* Name of device. Will be included in the advertising data.                                       */
 
 #if defined(__CROSSWORKS_ARM) || defined(__SES_ARM)
@@ -75,18 +77,39 @@
 
 #define SPI_INSTANCE                    0                                 /* SPI instance index.                                                                             */
 
-
+#if 0
 #define NRFX_SPIM_SCK_PIN               3
 #define NRFX_SPIM_MOSI_PIN              4
 #define NRFX_SPIM_MISO_PIN              28
-#define NRFX_SPIM_SS_PIN                29
+#if 0
+  #define NRFX_SPIM_SS_PIN              29
+#else
+  #define NRFX_SPIM_SS_PIN              NRFX_SPIM_PIN_NOT_USED
+#endif
 #define NRFX_SPIM_DCX_PIN               30
+#else
+
+//#define SPI_CS_PIN                      NRF_GPIO_PIN_MAP(1, 15)           /* CS pin   - P1.25 */
+#define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 2)            /* SCK pin  - P0.02 */
+#define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 27)           /* MOSI pin - P0.27 */
+#define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(0, 26)           /* MISO pin - P0.26 */
+#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 15)
+//#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
+
+#endif
+
+
 
 #define SPI_TEST_STRING                 "Just for testing 01234567890!"
 
 #define TWI_INSTANCE_ID                 1                                 /* TWI instance ID. */
+#if 0
 #define NRF_TWI_SCL_PIN                 27
 #define NRF_TWI_SDA_PIN                 26
+#else
+#define NRF_TWI_SCL_PIN                 30
+#define NRF_TWI_SDA_PIN                 31
+#endif
 
 #define LED_PIN                         NRF_GPIO_PIN_MAP(0, 25)           /* LED pin - P0.25 */
 

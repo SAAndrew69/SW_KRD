@@ -1407,9 +1407,9 @@ static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI ins
 static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
                              
 static uint8_t               m_tx_buf[] = SPI_TEST_STRING;            /* TX buffer.       */
-static uint8_t               m_rx_buf[sizeof(SPI_TEST_STRING) + 1];   /* RX buffer.       */
-static const uint8_t         m_length = sizeof(m_tx_buf);             /* Transfer length. */
-static nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(m_tx_buf, m_length, m_rx_buf, m_length);
+//static const uint8_t         m_length = sizeof(m_tx_buf);             /* Transfer length. */
+static uint8_t               m_rx_buf[sizeof(m_tx_buf) + 1];          /* RX buffer.       */
+//static nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(m_tx_buf, m_length, m_rx_buf, m_length);
 
 
 void handle_spim_event(nrfx_spim_evt_t const * p_event, void * p_context) {
@@ -1417,11 +1417,10 @@ void handle_spim_event(nrfx_spim_evt_t const * p_event, void * p_context) {
   /* Handle SPIM user event.            */
 
   spi_xfer_done = true;
-  NRF_LOG_INFO("SPIM transfer (TX/RX) completed.");
-  if (m_rx_buf[0] != 0) {
-    NRF_LOG_INFO(" Received:");
-    NRF_LOG_HEXDUMP_INFO(m_rx_buf, strlen((const char *)m_rx_buf));
-  }
+  //NRF_LOG_INFO("SPIM transfer (TX/RX) completed: %u/%u.", 
+  //             p_event->xfer_desc.tx_length, 
+  //             p_event->xfer_desc.rx_length - p_event->xfer_desc.tx_length);
+
 }
 
 
@@ -1429,18 +1428,19 @@ __STATIC_INLINE void init_spim(void) {
 
   /* Init SPIM peripheral */
 
-  nrfx_spim_config_t spi_config = NRFX_SPIM_DEFAULT_CONFIG;
-  spi_config.frequency      = NRF_SPIM_FREQ_1M;
-  spi_config.ss_active_high = false;
-
-  spi_config.ss_pin         = NRFX_SPIM_SS_PIN;
-  spi_config.miso_pin       = NRFX_SPIM_MISO_PIN;
-  spi_config.mosi_pin       = NRFX_SPIM_MOSI_PIN;
-  spi_config.sck_pin        = NRFX_SPIM_SCK_PIN;
-  /*
-  spi_config.dcx_pin        = NRFX_SPIM_DCX_PIN;
-  spi_config.use_hw_ss      = true;
-  */
+  nrfx_spim_config_t spi_config = {
+    .sck_pin        = SPI_SCK_PIN,
+    .mosi_pin       = SPI_MOSI_PIN,
+    .miso_pin       = SPI_MISO_PIN,
+    .ss_pin         = SPI_SS_PIN,
+    .ss_active_high = false,
+    .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
+    .orc            = 0xFF,
+    .frequency      = NRF_SPIM_FREQ_4M,
+    .mode           = NRF_SPIM_MODE_1,
+    .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
+    NRFX_SPIM_DEFAULT_EXTENDED_CONFIG
+  };
 
   uint32_t err_code = nrfx_spim_init(&spi, &spi_config, handle_spim_event, NULL);
   APP_ERROR_CHECK(err_code);
@@ -1448,21 +1448,80 @@ __STATIC_INLINE void init_spim(void) {
   NRF_LOG_INFO("SPIM peripheral enabled.");
 }
 
+__STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
 
-__STATIC_INLINE void test_spim(void) {
-  
-  /* Test SPI transfer */
-  
-  memset(m_rx_buf, 0, m_length);
+  uint8_t in_byte = 0, out_byte = cmd;
   spi_xfer_done = false;
-  
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer_desc, 0);
+
+  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&out_byte, 1, &in_byte, 1);
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
 
   APP_ERROR_CHECK(err_code);
  
   while (!spi_xfer_done) {
     __WFE();
   }
+
+}
+
+__STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
+
+  uint8_t cmd[2] = {RREG | (reg_no & 0x1F), (count & 0x1F)};
+  uint8_t temp_data[0x1f + 2] = {0}; 
+
+  spi_xfer_done = false;
+
+  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&cmd, 2, temp_data, count + 2);
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  APP_ERROR_CHECK(err_code);
+ 
+  while (!spi_xfer_done) {
+    __WFE();
+  }
+
+  memcpy(data, 2 + temp_data, count);
+
+}
+
+__STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
+  uint8_t temp_data[0x1f + 2] = {WREG | (reg_no & 0x1F), (count & 0x1F)};
+  uint8_t tmp;
+
+  memcpy(2 + temp_data, data, count);
+
+  spi_xfer_done = false;
+
+  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(temp_data, count + 2, &tmp, 1);
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  APP_ERROR_CHECK(err_code);
+ 
+  while (!spi_xfer_done) {
+    __WFE();
+  }
+
+}
+
+__STATIC_INLINE void test_spim(void) {
+  
+  /* Test SPI transfer */
+
+  uint8_t test = 2;
+  
+  ads_send_cmd(SDATAC);
+  ads_read_reg(ID, 26, m_rx_buf);
+  if(m_rx_buf[0] == 0x92) {
+    NRF_LOG_INFO("ADS1298 Analog Front-End detected:");
+    NRF_LOG_HEXDUMP_INFO(m_rx_buf, 26);
+    NRF_LOG_FLUSH();
+  }
+  ads_write_reg(1, 1, &test);
+  ads_read_reg(ID, 26, m_rx_buf);
+
 }
 
 
