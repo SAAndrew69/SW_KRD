@@ -175,6 +175,5 @@
     <file file_name="../inc/acquire.h" />
     <file file_name="datetime.h" />
     <file file_name="../inc/main.h" />
-    <file file_name="../inc/ads1298.h" />
   </project>
 </solution>

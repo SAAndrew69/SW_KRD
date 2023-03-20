@@ -39,7 +39,7 @@
 
 #include "nrf_gpio.h"
 
-#include "ads1298.h"
+#include "ads129x.h"
 
 #define DEVICE_NAME                     "CARDIOGLB_18"                       /* Name of device. Will be included in the advertising data.                                       */
 

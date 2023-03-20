@@ -1467,7 +1467,7 @@ __STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
 
 __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
 
-  uint8_t cmd[2] = {RREG | (reg_no & 0x1F), (count & 0x1F)};
+  uint8_t cmd[2] = {ADS129X_RREG | (reg_no & 0x1F), (count & 0x1F)};
   uint8_t temp_data[0x1f + 2] = {0}; 
 
   spi_xfer_done = false;
@@ -1487,7 +1487,7 @@ __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) 
 }
 
 __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
-  uint8_t temp_data[0x1f + 2] = {WREG | (reg_no & 0x1F), (count & 0x1F)};
+  uint8_t temp_data[0x1f + 2] = {ADS129X_WREG | (reg_no & 0x1F), (count & 0x1F)};
   uint8_t tmp;
 
   memcpy(2 + temp_data, data, count);
@@ -1512,15 +1512,16 @@ __STATIC_INLINE void test_spim(void) {
 
   uint8_t test = 2;
   
-  ads_send_cmd(SDATAC);
-  ads_read_reg(ID, 26, m_rx_buf);
-  if(m_rx_buf[0] == 0x92) {
+  ads_send_cmd(ADS129X_SDATAC);
+  ads_read_reg(ADS129X_ID, 26, m_rx_buf);
+  //if(m_rx_buf[0] == 0x92) {
+  if(ID_ADS1298 == m_rx_buf[0]) { 
     NRF_LOG_INFO("ADS1298 Analog Front-End detected:");
     NRF_LOG_HEXDUMP_INFO(m_rx_buf, 26);
     NRF_LOG_FLUSH();
   }
-  ads_write_reg(1, 1, &test);
-  ads_read_reg(ID, 26, m_rx_buf);
+  ads_write_reg(ADS129X_CONFIG1, 1, &test);
+  ads_read_reg(ADS129X_ID, 26, m_rx_buf);
 
 }
 
