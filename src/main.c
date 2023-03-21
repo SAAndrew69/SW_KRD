@@ -1406,9 +1406,9 @@ __STATIC_INLINE void handle_idle_state(void) {
 static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI instance.    */
 static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
                              
-static uint8_t               m_tx_buf[] = SPI_TEST_STRING;            /* TX buffer.       */
+//static uint8_t               m_tx_buf[] = SPI_TEST_STRING;            /* TX buffer.       */
 //static const uint8_t         m_length = sizeof(m_tx_buf);             /* Transfer length. */
-static uint8_t               m_rx_buf[sizeof(m_tx_buf) + 1];          /* RX buffer.       */
+//static uint8_t               m_rx_buf[sizeof(m_tx_buf) + 1];          /* RX buffer.       */
 //static nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(m_tx_buf, m_length, m_rx_buf, m_length);
 
 
@@ -1506,23 +1506,38 @@ __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data)
 
 }
 
-__STATIC_INLINE void test_spim(void) {
+__STATIC_INLINE void detect_ads1298(void) {
   
-  /* Test SPI transfer */
+  /* Detect ADS1298 presence */
 
-  uint8_t test = 2;
+  uint8_t reg_pool[ADS129X_REG_POOL_SIZE];
   
-  ads_send_cmd(ADS129X_SDATAC);
-  ads_read_reg(ADS129X_ID, 26, m_rx_buf);
-  //if(m_rx_buf[0] == 0x92) {
-  if(ID_ADS1298 == m_rx_buf[0]) { 
+    /* From 9.5.2:                                                                 */
+    /*   NDS Enable Read Data Continuous mode.                                     */
+    /*   RDATAC 0001 0000 (10h) — This mode is the default mode at power up.       */
+    /*   When in RDATAC mode, the RREG command is ignored.                         */
+
+  ads_send_cmd(ADS129X_SDATAC);                              /* Disable RDTAC mode */
+  ads_read_reg(ADS129X_ID, ADS129X_REG_POOL_SIZE, reg_pool); /* Read ADS129x ID    */
+
+  if(ID_ADS1298 == reg_pool[0]) { 
     NRF_LOG_INFO("ADS1298 Analog Front-End detected:");
-    NRF_LOG_HEXDUMP_INFO(m_rx_buf, 26);
-    NRF_LOG_FLUSH();
+    NRF_LOG_HEXDUMP_INFO(reg_pool, ADS129X_REG_POOL_SIZE);
+  } else {
+    NRF_LOG_ERROR("No ADS129x Analog Front-End detected!");
   }
-  ads_write_reg(ADS129X_CONFIG1, 1, &test);
-  ads_read_reg(ADS129X_ID, 26, m_rx_buf);
+  // ads_write_reg(ADS129X_CONFIG1, 1, &test);
+  // ads_read_reg(ADS129X_ID, 26, m_rx_buf);
 
+}
+
+__STATIC_INLINE void init_ads1298(void) {
+  register_pool_t reg_pool = ADS1298_CONFIG;
+  uint8_t n = sizeof(register_pool_t);
+
+  ads_write_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
+  memset(&reg_pool, 0, n);
+  ads_read_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
 }
 
 
@@ -1663,7 +1678,8 @@ __STATIC_INLINE void init(void) {
   init_twi();
   test_twi();
   init_spim();
-  test_spim();
+  detect_ads1298();
+  init_ads1298();
   init_timer();
 
   #if USE_ADC
