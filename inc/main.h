@@ -89,15 +89,17 @@
 #define NRFX_SPIM_DCX_PIN               30
 #else
 
-//#define SPI_CS_PIN                      NRF_GPIO_PIN_MAP(1, 15)           /* CS pin   - P1.25 */
 #define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 2)            /* SCK pin  - P0.02 */
 #define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 27)           /* MOSI pin - P0.27 */
 #define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(0, 26)           /* MISO pin - P0.26 */
-#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 15)
+#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 15)           /* CS pin   - P1.15 */
 //#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
 
 #endif
 
+#define ADS_START_PIN                  NRF_GPIO_PIN_MAP(1, 14)
+#define ADS_DATA_READY_PIN             NRF_GPIO_PIN_MAP(1, 13)
+#define ADS_RESET_PIN                  NRF_GPIO_PIN_MAP(1, 12)
 
 
 #define SPI_TEST_STRING                 "Just for testing 01234567890!"

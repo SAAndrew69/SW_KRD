@@ -6,19 +6,43 @@
 #endif
 
 /* ADS129x Configuration */
-#define ADS129x_CONFIG { \
-  .config1 = 0x96,       \
-  .config2 = 0xC0,       \
-  .loff    = 0x10,       \
-  .ch1set  = 0x00,       \
-  .ch2set  = 0x00,       \
-  .ch3set  = 0x00,       \
-  .ch4set  = 0x00,       \
-  .ch5set  = 0x00,       \
-  .ch6set  = 0x00,       \
-  .ch7set  = 0x00,       \
-  .ch8set  = 0x00,       \
-}
+#if !0 
+  #define ADS1298_CONFIG {            \
+    .ID          = 0x92,              \
+    .CONFIG1     = LOW_POWR_250_SPS,  \
+    .CONFIG3     = CONFIG3_CONST,     \
+    .GPIO        = GPIO_CONST,        \
+  }
+#else
+  #define ADS1298_CONFIG {            \
+    .ID          = 0x92,              \
+    .CONFIG1     = 0x06,              \
+    .CONFIG2     = 0x00,              \
+    .CONFIG3     = 0x40,              \
+    .LOFF        = 0x00,              \
+    .CH1SET      = 0x00,              \
+    .CH2SET      = 0x00,              \
+    .CH3SET      = 0x00,              \
+    .CH4SET      = 0x00,              \
+    .CH5SET      = 0x00,              \
+    .CH6SET      = 0x00,              \
+    .CH7SET      = 0x00,              \
+    .CH8SET      = 0x00,              \
+    .RLD_SENSP   = 0x00,              \
+    .RLD_SENSN   = 0x00,              \
+    .LOFF_SENSP  = 0x00,              \
+    .LOFF_SENSN  = 0x00,              \
+    .LOFF_FLIP   = 0x00,              \
+    .LOFF_STATP  = 0x00,              \
+    .LOFF_STATN  = 0x00,              \
+    .GPIO        = 0x0F,              \
+    .PACE        = 0x00,              \
+    .RESP        = 0x00,              \
+    .CONFIG4     = 0x00,              \
+    .WCT1        = 0x00,              \
+    .WCT2        = 0x00               \
+  }
+#endif
 
 enum ADS129X_REGISTER_POOL_SIZE {
   ADS129X_REG_POOL_SIZE = 26
@@ -145,7 +169,6 @@ enum ADS129X_CONFIG1_BIT {
   DR1              = 0x02,
   DR0              = 0x01,
   
-  CONFIG1_CONST    = 0x00,
   HIGH_RES_32k_SPS = HR,
   HIGH_RES_16k_SPS = (HR  | DR0       ),
   HIGH_RES_8k_SPS  = (HR  | DR1       ),
@@ -153,7 +176,9 @@ enum ADS129X_CONFIG1_BIT {
   HIGH_RES_2k_SPS  = (HR  | DR2       ),
   HIGH_RES_1k_SPS  = (HR  | DR2 | DR0 ),
   HIGH_RES_500_SPS = (HR  | DR2 | DR1 ),
-  LOW_POWR_250_SPS = (DR2 | DR1       )
+  LOW_POWR_250_SPS = (DR2 | DR1       ),
+
+  CONFIG1_CONST    = LOW_POWR_250_SPS
 };
 
 enum ADS129X_CONFIG2_BIT {
@@ -164,6 +189,7 @@ enum ADS129X_CONFIG2_BIT {
   TEST_FREQ0       = 0x01,
   
   CONFIG2_CONST    = 0x00,
+
   INT_TEST_4HZ     = INT_TEST, 
   INT_TEST_8HZ     = (INT_TEST | TEST_FREQ0),
   INT_TEST_DC      = (INT_TEST | TEST_FREQ1 | TEST_FREQ0)
@@ -561,67 +587,49 @@ enum ADS129X_WCT2_BIT {
 
 typedef struct {
 
-  uint8_t ADS129X_ID;
+  uint8_t ID;
   /* Global Settings */
-  uint8_t ADS129X_CONFIG1;
-  uint8_t ADS129X_CONFIG2;
-  uint8_t ADS129X_CONFIG3;
-  uint8_t ADS129X_LOFF;
+  uint8_t CONFIG1;
+  uint8_t CONFIG2;
+  uint8_t CONFIG3;
+  uint8_t LOFF;
   /* Channel Specific Settings */
-  uint8_t ADS129X_CH1SET;
-  uint8_t ADS129X_CH2SET;
-  uint8_t ADS129X_CH3SET;
-  uint8_t ADS129X_CH4SET;
-  uint8_t ADS129X_CH5SET;
-  uint8_t ADS129X_CH6SET;
-  uint8_t ADS129X_CH7SET;
-  uint8_t ADS129X_CH8SET;
-  uint8_t ADS129X_RLD_SENSP;
-  uint8_t ADS129X_RLD_SENSN;
-  uint8_t ADS129X_LOFF_SENSP;
-  uint8_t ADS129X_LOFF_SENSN;
-  uint8_t ADS129X_LOFF_FLIP;
+  uint8_t CH1SET;
+  uint8_t CH2SET;
+  uint8_t CH3SET;
+  uint8_t CH4SET;
+  uint8_t CH5SET;
+  uint8_t CH6SET;
+  uint8_t CH7SET;
+  uint8_t CH8SET;
+  uint8_t RLD_SENSP;
+  uint8_t RLD_SENSN;
+  uint8_t LOFF_SENSP;
+  uint8_t LOFF_SENSN;
+  uint8_t LOFF_FLIP;
   /* Lead Off Status */
-  uint8_t ADS129X_LOFF_STATP;
-  uint8_t ADS129X_LOFF_STATN;
+  uint8_t LOFF_STATP;
+  uint8_t LOFF_STATN;
   /* Other */
-  uint8_t ADS129X_GPIO;
-  uint8_t ADS129X_PACE;
-  uint8_t ADS129X_RESP;
-  uint8_t ADS129X_CONFIG4;
-  uint8_t ADS129X_WCT1;
-  uint8_t ADS129X_WCT2;
+  uint8_t GPIO;
+  uint8_t PACE;
+  uint8_t RESP;
+  uint8_t CONFIG4;
+  uint8_t WCT1;
+  uint8_t WCT2;
 
 } register_pool_t;
 
-#define ADS1298_CONFIG {                    \
-  .ADS129X_ID          = 0x92,              \
-  .ADS129X_CONFIG1     = HIGH_RES_500_SPS,  \
-  .ADS129X_CONFIG2     = CONFIG2_CONST,     \
-  .ADS129X_CONFIG3     = CONFIG3_CONST,     \
-  .ADS129X_LOFF        = 0x00,              \
-  .ADS129X_CH1SET      = 0x00,              \
-  .ADS129X_CH2SET      = 0x00,              \
-  .ADS129X_CH3SET      = 0x00,              \
-  .ADS129X_CH4SET      = 0x00,              \
-  .ADS129X_CH5SET      = 0x00,              \
-  .ADS129X_CH6SET      = 0x00,              \
-  .ADS129X_CH7SET      = 0x00,              \
-  .ADS129X_CH8SET      = 0x00,              \
-  .ADS129X_RLD_SENSP   = 0x00,              \
-  .ADS129X_RLD_SENSN   = 0x00,              \
-  .ADS129X_LOFF_SENSP  = 0x00,              \
-  .ADS129X_LOFF_SENSN  = 0x00,              \
-  .ADS129X_LOFF_FLIP   = 0x00,              \
-  .ADS129X_LOFF_STATP  = 0x00,              \
-  .ADS129X_LOFF_STATN  = 0x00,              \
-  .ADS129X_GPIO        = GPIO_CONST,        \
-  .ADS129X_PACE        = 0x00,              \
-  .ADS129X_RESP        = 0x00,              \
-  .ADS129X_CONFIG4     = 0x00,              \
-  .ADS129X_WCT1        = 0x00,              \
-  .ADS129X_WCT2        = 0x00               \
-}
+typedef struct {
+  uint8_t LOFF_STATP;
+  uint8_t LOFF_STATN;
+  uint8_t GPIO;
+} status_reg_t;
+
+typedef struct {
+  uint8_t data[27];
+} rdata_t;
+
 
 #ifdef __cplusplus
 }

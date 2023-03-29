@@ -1436,7 +1436,7 @@ __STATIC_INLINE void init_spim(void) {
     .ss_active_high = false,
     .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
     .orc            = 0xFF,
-    .frequency      = NRF_SPIM_FREQ_4M,
+    .frequency      = NRF_SPIM_FREQ_1M,
     .mode           = NRF_SPIM_MODE_1,
     .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
     NRFX_SPIM_DEFAULT_EXTENDED_CONFIG
@@ -1506,11 +1506,70 @@ __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data)
 
 }
 
-__STATIC_INLINE void detect_ads1298(void) {
-  
-  /* Detect ADS1298 presence */
 
-  uint8_t reg_pool[ADS129X_REG_POOL_SIZE];
+
+__STATIC_INLINE void ads_read_data(unsigned *data) {
+
+  typedef struct {
+     uint8_t low;
+     uint8_t mid;
+     uint8_t high;
+  } unsigend_24_t;
+
+  uint8_t cmd = ADS129X_RDATA;
+  uint8_t in_buf[216 / 8 + 1];
+  unsigend_24_t *inbuf = (unsigend_24_t*)&in_buf[1];
+
+  spi_xfer_done = false;
+
+  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&cmd, 1, in_buf, sizeof(in_buf));
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  APP_ERROR_CHECK(err_code);
+ 
+  while (!spi_xfer_done) {
+    __WFE();
+  }
+
+  for (size_t i = 0; i < sizeof(in_buf) / 3; i++) {
+    *(unsigend_24_t *)&data[i] = inbuf[i];
+  }
+
+  #if 0
+    data[0] = 0x764523c1;
+  #endif
+
+  inbuf = (unsigend_24_t*)&data[0];
+  inbuf->low = (inbuf->low << 4) | (inbuf->mid >> 4);
+  inbuf->mid = (inbuf->mid << 4) | (inbuf->high >> 4);
+  inbuf->high <<= 4;
+
+}
+
+// void handle_pin_interrupt(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
+//     // Exception handler
+//     __NOP();
+// }
+
+
+static union {
+   status_reg_t status;
+   unsigned channel[9];
+} ads1298_single_sample ;
+
+__STATIC_INLINE void init_ads1298(void) {
+
+  /* Configure ADS1298 Chip */
+  
+  register_pool_t r, reg_pool = ADS1298_CONFIG;
+  uint8_t n = sizeof(register_pool_t);
+
+  nrf_gpio_cfg_output(ADS_RESET_PIN);
+
+  nrf_gpio_pin_clear(ADS_RESET_PIN);
+  nrf_delay_us(500);
+  nrf_gpio_pin_set(ADS_RESET_PIN);
   
     /* From 9.5.2:                                                                 */
     /*   NDS Enable Read Data Continuous mode.                                     */
@@ -1518,26 +1577,46 @@ __STATIC_INLINE void detect_ads1298(void) {
     /*   When in RDATAC mode, the RREG command is ignored.                         */
 
   ads_send_cmd(ADS129X_SDATAC);                              /* Disable RDTAC mode */
-  ads_read_reg(ADS129X_ID, ADS129X_REG_POOL_SIZE, reg_pool); /* Read ADS129x ID    */
 
-  if(ID_ADS1298 == reg_pool[0]) { 
+  /* Detect ADS1298 presence */
+
+  ads_read_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);          /* Read ADS129x ID    */
+
+  if(ID_ADS1298 == reg_pool.ID) { 
     NRF_LOG_INFO("ADS1298 Analog Front-End detected:");
-    NRF_LOG_HEXDUMP_INFO(reg_pool, ADS129X_REG_POOL_SIZE);
+    NRF_LOG_HEXDUMP_INFO((uint8_t *)&reg_pool, ADS129X_REG_POOL_SIZE);
   } else {
     NRF_LOG_ERROR("No ADS129x Analog Front-End detected!");
   }
-  // ads_write_reg(ADS129X_CONFIG1, 1, &test);
-  // ads_read_reg(ADS129X_ID, 26, m_rx_buf);
-
-}
-
-__STATIC_INLINE void init_ads1298(void) {
-  register_pool_t reg_pool = ADS1298_CONFIG;
-  uint8_t n = sizeof(register_pool_t);
 
   ads_write_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
+  r = reg_pool;
   memset(&reg_pool, 0, n);
   ads_read_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
+
+  if (0 == memcmp((void*)&r, (void*)&reg_pool, n)) {
+    NRF_LOG_INFO("ADS1298 configuration applied.");
+  }
+
+  //nrf_gpio_cfg_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_NOPULL);
+  nrf_gpio_cfg_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_PULLUP);
+  //nrf_gpio_cfg_sense_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_SENSE_LOW, handle_pin_interrupt);
+  //NVIC_EnableIRQ(GPIOTE_IRQn);
+
+  if (0 == nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
+    NRF_LOG_INFO("ADS1298 DATA READY PIN IS LOW.");
+  } else {
+    NRF_LOG_INFO("ADS1298 DATA READY PIN IS HIGH.");
+  }
+
+  /* NOTE: When using the START opcode to begin conversions, hold the START pin low. */
+  ads_send_cmd(ADS129X_START);   /* START CONVERSION */
+
+  while (0 != nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
+    /* wait till conversion completes */
+  }
+  ads_read_data((unsigned*)&ads1298_single_sample);   /* START CONVERSION */
+
 }
 
 
@@ -1678,7 +1757,6 @@ __STATIC_INLINE void init(void) {
   init_twi();
   test_twi();
   init_spim();
-  detect_ads1298();
   init_ads1298();
   init_timer();
 
