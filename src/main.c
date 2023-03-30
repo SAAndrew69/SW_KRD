@@ -1507,8 +1507,7 @@ __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data)
 }
 
 
-
-__STATIC_INLINE void ads_read_data(unsigned *data) {
+__STATIC_INLINE void ads_read_data(int *data) {
 
   typedef struct {
      uint8_t low;
@@ -1517,7 +1516,8 @@ __STATIC_INLINE void ads_read_data(unsigned *data) {
   } unsigend_24_t;
 
   uint8_t cmd = ADS129X_RDATA;
-  uint8_t in_buf[216 / 8 + 1];
+  uint8_t in_buf[28];
+  
   unsigend_24_t *inbuf = (unsigend_24_t*)&in_buf[1];
 
   spi_xfer_done = false;
@@ -1532,18 +1532,23 @@ __STATIC_INLINE void ads_read_data(unsigned *data) {
     __WFE();
   }
 
-  for (size_t i = 0; i < sizeof(in_buf) / 3; i++) {
-    *(unsigend_24_t *)&data[i] = inbuf[i];
-  }
-
   #if 0
-    data[0] = 0x764523c1;
+    inbuf->low = 0xc1;
+    inbuf->mid = 0x23;
+    inbuf->high = 0x45;
   #endif
 
-  inbuf = (unsigend_24_t*)&data[0];
-  inbuf->low = (inbuf->low << 4) | (inbuf->mid >> 4);
-  inbuf->mid = (inbuf->mid << 4) | (inbuf->high >> 4);
-  inbuf->high <<= 4;
+  for (size_t i = 0; i < sizeof(in_buf) / 3; i++) { 
+    
+    *(unsigend_24_t *)&data[i] = inbuf[i];  /* copy 24-bit value to 32-bit var          */
+    data[i] = __REV(data[i]) >> 8;          /* convert from big-endian to little-endian */
+
+    if ((i > 0) && (data[i] & 0x800000)) {  /* Check for negative number                */
+      data[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
+    }
+  }
+
+  data[0] = (data[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
 
 }
 
@@ -1555,7 +1560,7 @@ __STATIC_INLINE void ads_read_data(unsigned *data) {
 
 static union {
    status_reg_t status;
-   unsigned channel[9];
+   int channel[9];
 } ads1298_single_sample ;
 
 __STATIC_INLINE void init_ads1298(void) {
@@ -1615,7 +1620,7 @@ __STATIC_INLINE void init_ads1298(void) {
   while (0 != nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
     /* wait till conversion completes */
   }
-  ads_read_data((unsigned*)&ads1298_single_sample);   /* START CONVERSION */
+  ads_read_data((int*)&ads1298_single_sample);   /* START CONVERSION */
 
 }
 

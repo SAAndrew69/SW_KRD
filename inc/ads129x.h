@@ -621,9 +621,9 @@ typedef struct {
 } register_pool_t;
 
 typedef struct {
-  uint8_t LOFF_STATP;
-  uint8_t LOFF_STATN;
   uint8_t GPIO;
+  uint8_t LOFF_STATN;
+  uint8_t LOFF_STATP;
 } status_reg_t;
 
 typedef struct {
