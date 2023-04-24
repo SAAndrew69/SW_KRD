@@ -5,11 +5,18 @@
  extern "C" {
 #endif
 
+typedef enum {
+  ADS_CONVERT_16_8,
+  ADS_CONVERT_16_16,
+  ADS_CONVERT_24_16,
+  ADS_CONVERT_24_24
+} ads_convert_t;
+
 /* ADS129x Configuration */
 #if !0 
   #define ADS1298_CONFIG {            \
     .ID          = 0x92,              \
-    .CONFIG1     = LOW_POWR_250_SPS,  \
+    .CONFIG1     = HIGH_RES_32k_SPS,  \
     .CONFIG3     = CONFIG3_CONST,     \
     .GPIO        = GPIO_CONST,        \
   }

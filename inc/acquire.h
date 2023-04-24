@@ -5,6 +5,7 @@
  extern "C" {
 #endif
 
+#if 0
 static const uint16_t acq_data[] = {
 #if 0
   65535,1927,1840,65535,1918,1838,65535,1913,1854,65535,1905,1858,65535,1903,1863,65535,1904,1874,65535,1919,
@@ -29,8 +30,7 @@ static const uint16_t acq_data[] = {
   0x2710, 0x27A8, 0x296C, 0x2C4C, 0x3034, 0x3505, 0x3A98, 0x40C4, 0x4758
 #endif
 };
-
-
+#endif
 
 
 extern uint32_t ble_output(uint8_t * s, uint16_t len);
@@ -80,7 +80,7 @@ __STATIC_INLINE void fill_string(uint8_t *s, uint16_t w, uint8_t len) {
   }
 }
 
-
+#if 0
 __STATIC_INLINE void acquire(void) {
   #if 0
   ble_output((unsigned char*)acq_data, 244);
@@ -102,6 +102,7 @@ __STATIC_INLINE void acquire(void) {
   ble_output(buf, sizeof(buf));
   #endif
 }
+#endif
 #endif
 
 

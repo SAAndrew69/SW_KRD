@@ -127,10 +127,26 @@
   #define USE_ADC                       YES
 #endif
 
+typedef enum {
+  ACQUIRING_INACTIVE = 0,
+  ACQUIRING_REQUESTED,
+  ACQUIRING_STARTED,
+  ACQUIRING_ACTIVE,
+  ACQUIRING_IN_PROGRESS,
+  ACQUIRING_DATA_READY,
+  ACQUIRING_COMPLETE
+} acquiring_state_t;
+
 #define ADC_CORRECTION_FACTOR           +75
 
 __STATIC_INLINE void init(void);
 __STATIC_INLINE void handle_idle_state(void);
+
+__STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t conv_type, unsigned status_word_req);
+__STATIC_INLINE void ads_start_acquiring(void);
+
+__STATIC_FORCEINLINE acquiring_state_t get_acquiring_state(void);
+__STATIC_FORCEINLINE void set_acquiring_state(acquiring_state_t s);
 
 #ifdef __cplusplus
 }

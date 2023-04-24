@@ -204,7 +204,7 @@ uint32_t ble_output(uint8_t * s, uint16_t len) {
 }
 
 static uint32_t ble_test_output(uint8_t *s) {
-  uint16_t length = 244;
+  uint16_t length = 216;
   uint32_t err_code;
   do {
     err_code = ble_nus_data_send(&m_nus, s, &length, m_conn_handle);
@@ -388,8 +388,8 @@ __STATIC_INLINE void single_sample(void) {     /* process 'c' command */
 
   if (acquiring_status == 0) {
     char buf[80];
-    unsigned len = snprintf(buf, sizeof(buf), "%u, %u, %u, ", acq_data[0], acq_data[1], acq_data[2]);
-    ble_output((uint8_t *)&buf, len);
+    //unsigned len = snprintf(buf, sizeof(buf), "%u, %u, %u, ", acq_data[0], acq_data[1], acq_data[2]);
+    ble_output((uint8_t *)&buf, /* len */ 10);
   }
 }
 
@@ -1109,7 +1109,7 @@ static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const 
 }
 
 //#define CUSTOM_MTU 219
-#define CUSTOM_MTU 231
+#define CUSTOM_MTU 247
 
 __STATIC_INLINE void init_gatt(void) {
 
@@ -1340,24 +1340,72 @@ __STATIC_INLINE void start_advertising(void) {
   APP_ERROR_CHECK(err_code);
 }
 
+static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI instance.    */
+static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
+
+static uint8_t spi_rx_buf[256];
+static uint8_t spi_tx_buf[256];
+
+static nrfx_spim_xfer_desc_t xfer = {.p_tx_buffer = (uint8_t const *)(spi_tx_buf), .p_rx_buffer = spi_rx_buf};
+
+/*
+#define NRFX_SPIM_SINGLE_XFER(p_tx, tx_len, p_rx, rx_len) \
+    {                                                     \
+    .p_tx_buffer = (uint8_t const *)(p_tx),               \
+    .tx_length = (tx_len),                                \
+    .p_rx_buffer = (p_rx),                                \
+    .rx_length = (rx_len),                                \
+    }
+*/
+
 #define TEST_DATA_LENGTH 244
+#define ADS_BLOCK_16_COUNT 15
+#define ADS_BLOCK_24_COUNT 10
 #define BLOCKS_TO_SEND 10000UL
 
 static union {
-  uint8_t test_data[TEST_DATA_LENGTH];
+  uint8_t buf[TEST_DATA_LENGTH];
   uint32_t id;
+  status_reg_t status;
+  unsigned data32[TEST_DATA_LENGTH / sizeof(uint32_t)];       /*  9 = 32 bit header + 8 * 32 bit data */
 } x;
+static uint8_t bndx;
 
+__STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd) {
+
+  spi_tx_buf[0] = cmd;
+  xfer.tx_length = 1;
+  xfer.rx_length = 1;
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  APP_ERROR_CHECK(err_code);
+
+}
+
+__STATIC_INLINE void ads_finish_sending_cmd(void) {
+
+  while (!spi_xfer_done) {
+    __WFE();
+  }
+
+}
+
+__STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
+
+  spi_xfer_done = false;
+  ads_start_sending_cmd(cmd);
+  ads_finish_sending_cmd();
+
+}
+
+static int loop_counter;
 
 __STATIC_INLINE void handle_idle_state(void) {
 
   /* Sleep until the next event occurs if there is no pending log operation */
 
-  if (acquiring_status != 0) {
-
-    acquire();
-
-  } else if (print_help != 0) {
+  if (print_help != 0) {
 
     help();
     print_help = 0;
@@ -1373,12 +1421,12 @@ __STATIC_INLINE void handle_idle_state(void) {
     for (uint32_t i = 0; i < BLOCKS_TO_SEND; i++) {
       x.id = i;
       for (uint32_t j = 0; j < TEST_DATA_LENGTH / 2; j++) {
-        x.test_data[j] = '0' + (i & 0x1F);
+        x.buf[j] = '0' + (i & 0x1F);
       }
       for (uint32_t j = TEST_DATA_LENGTH / 2; j < TEST_DATA_LENGTH; j++) {
-        x.test_data[j] = 'Z' - (i & 0x0F);
+        x.buf[j] = 'Z' - (i & 0x0F);
       }
-      ble_test_output(x.test_data);
+      ble_test_output(x.buf);
     };
 
     NRF_TIMER3->TASKS_CAPTURE[0] = 1;       /* capture TIMER3 counter value */
@@ -1396,6 +1444,57 @@ __STATIC_INLINE void handle_idle_state(void) {
 
     test_req = 0;
 
+    //acquire();
+
+  } else if (ACQUIRING_INACTIVE == get_acquiring_state()) {
+
+    /* NOTE: When using the START opcode to begin conversions, hold the START pin low. */
+
+    if (acquiring_status != 0) {
+      set_acquiring_state(ACQUIRING_STARTED);
+      ads_start_sending_cmd(ADS129X_START); /* START CONVERSION */
+      loop_counter++;
+    }
+
+  } else if (ACQUIRING_REQUESTED == get_acquiring_state()) {
+
+    // /* NOTE: When using the START opcode to begin conversions, hold the START pin low. */
+    // 
+    // set_acquiring_state(ACQUIRING_STARTED);
+    // ads_start_sending_cmd(ADS129X_START); /* START CONVERSION */
+
+  } else if (ACQUIRING_ACTIVE == get_acquiring_state()) {
+
+    if (0 == nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
+      ads_start_acquiring();             /* START CONVERSION */
+      set_acquiring_state(ACQUIRING_IN_PROGRESS);
+    }
+
+  } else if (ACQUIRING_DATA_READY == get_acquiring_state()) {
+
+    #if 0
+    void *p = x.buf + 24 * bndx++;
+    if (ads_finish_acquiring(p, ADS_CONVERT_24_24, ADS_BLOCK_24_COUNT == bndx)) {
+      bndx = 0;
+      ble_output(x.buf, TEST_DATA_LENGTH);
+      memset(x.buf, 0, TEST_DATA_LENGTH);
+    }
+    #else
+
+    void *p = x.buf + 16 * bndx++;
+
+    if (ads_finish_acquiring(p, ADS_CONVERT_16_16, bndx == ADS_BLOCK_16_COUNT)) {
+      bndx = 0;
+      ble_output(x.buf, 244);
+      memset(x.buf, 0, TEST_DATA_LENGTH);
+    }
+
+    #endif
+
+    set_acquiring_state(ACQUIRING_INACTIVE);
+
+    __NOP();
+
   } else {
     if (NRF_LOG_PROCESS() == false) {
       nrf_pwr_mgmt_run();
@@ -1403,23 +1502,22 @@ __STATIC_INLINE void handle_idle_state(void) {
   }
 }
 
-static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI instance.    */
-static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
-                             
-//static uint8_t               m_tx_buf[] = SPI_TEST_STRING;            /* TX buffer.       */
-//static const uint8_t         m_length = sizeof(m_tx_buf);             /* Transfer length. */
-//static uint8_t               m_rx_buf[sizeof(m_tx_buf) + 1];          /* RX buffer.       */
-//static nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(m_tx_buf, m_length, m_rx_buf, m_length);
-
 
 void handle_spim_event(nrfx_spim_evt_t const * p_event, void * p_context) {
 
   /* Handle SPIM user event.            */
 
   spi_xfer_done = true;
-  //NRF_LOG_INFO("SPIM transfer (TX/RX) completed: %u/%u.", 
-  //             p_event->xfer_desc.tx_length, 
-  //             p_event->xfer_desc.rx_length - p_event->xfer_desc.tx_length);
+
+  if (ACQUIRING_STARTED == get_acquiring_state()) {
+
+    set_acquiring_state(ACQUIRING_ACTIVE);
+
+  } else if (ACQUIRING_IN_PROGRESS == get_acquiring_state()) {
+
+    set_acquiring_state(ACQUIRING_DATA_READY);
+
+  }
 
 }
 
@@ -1448,44 +1546,115 @@ __STATIC_INLINE void init_spim(void) {
   NRF_LOG_INFO("SPIM peripheral enabled.");
 }
 
-__STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
+__STATIC_INLINE void ads_finish_reading_register(uint8_t *data) {
+  memcpy(data, 2 + spi_rx_buf, xfer.rx_length - 2);
+}
 
-  uint8_t in_byte = 0, out_byte = cmd;
-  spi_xfer_done = false;
+#if 0
+__STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
 
-  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&out_byte, 1, &in_byte, 1);
+  spi_tx_buf[0]  = ADS129X_RREG | (reg_no & 0x1F);
+  spi_tx_buf[1]  = count & 0x1F;
+  xfer.tx_length = 2;
+  xfer.rx_length = count + 2;
 
   uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
 
   APP_ERROR_CHECK(err_code);
  
-  while (!spi_xfer_done) {
-    __WFE();
-  }
-
 }
+#else
+__STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
+  /*
+    Start reading a specified register on the ADS129x device
+    reg_no : the register number to read (0-31)
+    count  : the number of bytes to read from the register (1-31)
 
+  */
+
+  /* Set the first byte of the SPI transfer to the RREG command and the register number */
+  spi_tx_buf[0]  = ADS129X_RREG | (reg_no & 0x1F);
+  
+  /* Set the second byte of the SPI transfer to the number of bytes to read from the register */
+  spi_tx_buf[1]  = count & 0x1F;
+  
+  /* Set the length of the SPI transfer to be 2 (command and register number) plus the number of bytes to read */
+  xfer.tx_length = 2;
+  xfer.rx_length = count + 2;
+
+  /* Perform the SPI transfer using the nrfx_spim_xfer function */
+  /* The third argument (0) is used to specify transfer options (0 for default settings) */
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  /* Check for errors and halt execution if an error is detected */
+  APP_ERROR_CHECK(err_code);
+}
+#endif
+
+#if 0
 __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
 
-  uint8_t cmd[2] = {ADS129X_RREG | (reg_no & 0x1F), (count & 0x1F)};
-  uint8_t temp_data[0x1f + 2] = {0}; 
-
   spi_xfer_done = false;
+  ads_start_reading_register(reg_no, count);
 
-  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&cmd, 2, temp_data, count + 2);
-
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
-
-  APP_ERROR_CHECK(err_code);
- 
   while (!spi_xfer_done) {
     __WFE();
   }
 
-  memcpy(data, 2 + temp_data, count);
+  ads_finish_reading_register(data);
+
+}
+#else
+/**
+
+    @brief Reads data from a specified register on the ADS129x device
+    @param reg_no The register number to read (0-31)
+    @param count The number of bytes to read from the register (1-31)
+    @param data A pointer to a buffer to store the read data
+    */
+__STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
+    
+  spi_xfer_done = false; /* Set the SPI transfer flag to false */
+  ads_start_reading_register(reg_no, count); /* Start reading the specified register */
+
+  while (!spi_xfer_done) { /* Wait for the SPI transfer to complete */
+    /* Use the Wait For Event (WFE) instruction to enter a low power state until */
+    /* an event (in this case, the SPI transfer completion) wakes up the CPU     */
+    __WFE();
+  }
+  
+  ads_finish_reading_register(data); /* Finish reading the register and store the data in the provided buffer */
+
+}
+#endif
+
+
+__STATIC_INLINE void ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data) {
+
+  spi_tx_buf[0] = ADS129X_WREG | (reg_no & 0x1F);
+  spi_tx_buf[1] = count & 0x1F;
+
+  xfer.tx_length = count + 2;
+  xfer.rx_length = 1;
+  
+  memcpy(2 + spi_tx_buf, data, count);
+
+  // spi_xfer_done = false;
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  APP_ERROR_CHECK(err_code);
 
 }
 
+__STATIC_INLINE void ads_finish_writting_register(void) { 
+
+  while (!spi_xfer_done) {
+    __WFE();
+  }
+
+}
+
+#if 0
 __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
   uint8_t temp_data[0x1f + 2] = {ADS129X_WREG | (reg_no & 0x1F), (count & 0x1F)};
   uint8_t tmp;
@@ -1505,9 +1674,44 @@ __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data)
   }
 
 }
+#else
+__STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
+  
+  spi_xfer_done = false;
+  ads_start_writting_register(reg_no, count, data);
+  ads_finish_writting_register();
+}
+
+#endif
 
 
-__STATIC_INLINE void ads_read_data(int *data) {
+#define DATA_LEN (27 + 1)
+// static uint8_t spi_buf[DATA_LEN];
+// static uint8_t spi_cmd;
+
+
+
+__STATIC_INLINE void ads_start_acquiring(void) {
+
+  register_pool_t r = ADS1298_CONFIG;
+
+  spi_tx_buf[0] = ADS129X_RDATA;
+
+  xfer.tx_length = 1;
+  xfer.rx_length = 1 + 8 * ((r.CONFIG1 == HIGH_RES_32k_SPS) ? 2 : 3);
+  
+  spi_xfer_done = false;
+
+  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  APP_ERROR_CHECK(err_code);
+
+}
+ 
+#if 0
+__STATIC_INLINE unsigned ads_finish_acquiring(void *data, ads_convert_t conv_type, unsigned status_word_req) {
+
+  static unsigned status;
 
   typedef struct {
      uint8_t low;
@@ -1515,42 +1719,256 @@ __STATIC_INLINE void ads_read_data(int *data) {
      uint8_t high;
   } unsigend_24_t;
 
-  uint8_t cmd = ADS129X_RDATA;
-  uint8_t in_buf[28];
-  
-  unsigend_24_t *inbuf = (unsigend_24_t*)&in_buf[1];
+  if (ADS_CONVERT_24_24 == conv_type) {
 
-  spi_xfer_done = false;
+    unsigend_24_t *src = (unsigend_24_t*)&spi_rx_buf[1];
+    uint8_t *dst = (uint8_t *) data;
 
-  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(&cmd, 1, in_buf, sizeof(in_buf));
+    uint32_t d;
 
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+    for (size_t i = 1; i < DATA_LEN / 3; i++) {
 
-  APP_ERROR_CHECK(err_code);
- 
-  while (!spi_xfer_done) {
-    __WFE();
-  }
-
-  #if 0
-    inbuf->low = 0xc1;
-    inbuf->mid = 0x23;
-    inbuf->high = 0x45;
-  #endif
-
-  for (size_t i = 0; i < sizeof(in_buf) / 3; i++) { 
+      *(unsigend_24_t *)(&d) = src[i];          /* copy 24-bit value to 32-bit var          */
+      d = __REV(d) >> 8;                        /* convert from big-endian to little-endian */
+      memcpy(dst + (i - 1) * 3, &d, 3);
     
-    *(unsigend_24_t *)&data[i] = inbuf[i];  /* copy 24-bit value to 32-bit var          */
-    data[i] = __REV(data[i]) >> 8;          /* convert from big-endian to little-endian */
-
-    if ((i > 0) && (data[i] & 0x800000)) {  /* Check for negative number                */
-      data[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
     }
+
+    *(unsigend_24_t *)(&d) = src[0];
+    d = __REV(d) >> 8;                          /* convert from big-endian to little-endian */
+    d = (d << 4) & 0x00FFFFFF;                  /* alighn 'status register' bits            */
+    status |= d;
+
+    if (0 != status_word_req) {
+      *(uint32_t*)(data + 10 * 8 * 3) = status | 0xFF000000;
+      status = 0;
+    }
+
+  
+    #if 0
+      inbuf->low = 0xc1;
+      inbuf->mid = 0x23;
+      inbuf->high = 0x45;
+    #endif
+  
+    // for (size_t i = 0; i < DATA_LEN / 3; i++) { 
+    //   
+    //   *(unsigend_24_t *)&data[i] = inbuf[i];  /* copy 24-bit value to 32-bit var          */
+    //   data[i] = __REV(data[i]) >> 8;          /* convert from big-endian to little-endian */
+    // 
+    //   if ((i > 0) && (data[i] & 0x800000)) {  /* Check for negative number                */
+    //     data[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
+    //   }
+    // }
+    //
+    // data[0] = (data[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
+
+    // for (size_t i = 0; i < DATA_LEN / 3; i++) { 
+    //   
+    //   *(unsigend_24_t *)(dst + i) = src[i]; /* copy 24-bit value to 32-bit var          */
+    //   dst[i] = __REV(dst[i]) >> 8;          /* convert from big-endian to little-endian */
+    // 
+    //   if ((i > 0) && (dst[i] & 0x800000)) {  /* Check for negative number                */
+    //     dst[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
+    //   }
+    // }
+    // 
+    // dst[0] = (dst[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
+
+    // uint8_t buf[8 * 3];
+
+
+  } else if (ADS_CONVERT_24_16 == conv_type) {
+
+    unsigend_24_t *src = (unsigend_24_t*)&spi_rx_buf[1];
+    uint16_t buf[DATA_LEN / 3];
+
+    for (size_t i = 1; i < DATA_LEN / 3; i++) { 
+     
+      buf[i] = __REV16(*(uint16_t*)&src[i]);               /* copy 24-bit value to 32-bit var          */
+
+    }
+
+    uint32_t d;
+
+    *(unsigend_24_t *)(&d) = src[0];
+
+    d = __REV(d) >> 8;
+    d <<= 4;
+
+    status |= d;
+    
+    memcpy(data, &buf[1], 8 * sizeof(uint16_t));
+
+    if (0 != status_word_req) {
+      d = status | 0xFF000000;                   /* Add packet-mark */
+      memcpy(data + 8 * sizeof(uint16_t), &status, sizeof(status));
+      status = 0;
+    }
+
+  } else if (ADS_CONVERT_16_16 == conv_type) {
+  } else if (ADS_CONVERT_16_8 == conv_type)  {
+  } else {
+    APP_ERROR_CHECK((uint32_t)(conv_type));
   }
 
-  data[0] = (data[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
+  return status_word_req;
 
 }
+#else
+
+typedef struct {  /* Define a structure to represent a 24-bit unsigned integer */
+    uint8_t low;  /* 8 least significant bits                                  */
+    uint8_t mid;  /* next 8 bits                                               */
+    uint8_t high; /* 8 most significant bits                                   */
+} unsigned_24_t;
+
+
+__STATIC_FORCEINLINE void rev24(void *p24) {
+/*
+  The function takes a pointer to a 24-bit value (represented as three contiguous bytes in memory) 
+  and swaps the first and third bytes. This could be useful in various applications 
+  where it is necessary to manipulate the order of bytes in a data stream, 
+  such as in networking or file I/O operations.
+  
+  The function provides two options for performing the swap:
+  
+      Option 1: use a temporary variable to swap the bytes. This is a simple and 
+                efficient method that avoids the need for XOR operations.
+      Option 2: use XOR operations to swap the bytes. This method is more complex 
+                and less efficient than using a temporary variable, 
+                but it can be useful in certain situations where memory usage is a concern.
+  
+  Note that the function is defined as a static inline function using 
+  the __STATIC_FORCEINLINE macro, which suggests that it is intended 
+  for use in performance-critical code that requires fast execution.
+*/
+
+  #if 1 /* Option 1: use a temporary variable to swap the bytes */
+    uint8_t t = *(uint8_t *)p24;             /* Store the first byte in a temporary variable */
+    *(uint8_t *)p24 = *(uint8_t *)(p24 + 2); /* Copy the third byte to the first byte's location */
+    *(uint8_t *)(p24 + 2) = t;               /* Copy the byte from the temporary variable to the third byte's location */
+  
+  #else /* Option 2: use XOR operations to swap the bytes (not currently used) */
+    *(uint8_t *)p24 = *(uint8_t *)p24 ^ *(uint8_t *)(p24 + 2);
+    *(uint8_t *)(p24 + 2) = *(uint8_t *)(p24 + 2) ^ *(uint8_t *)p24;
+    *(uint8_t *)p24 = *(uint8_t *)p24 ^ *(uint8_t *)(p24 + 2);
+  #endif
+}
+
+__STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t conv_type, unsigned status_word_req) {
+
+  /*
+      Function to finish acquiring data from an ADS device
+      data             : pointer to the buffer where the acquired data should be stored
+      conv_type        : the type of conversion to perform on the acquired data
+      status_word_req  : flag indicating whether to include a status word in the acquired data
+      ========================================================================================
+      Returns          : information about whether the package formation has been completed
+  */
+    
+    if (data == NULL) { /* If the data pointer is NULL, return 0 */
+        return 0;
+    }
+
+    // Initialize a static variable to hold the status word
+    static unsigned status;
+    uint8_t *dst = (uint8_t *) data;
+
+    switch (conv_type) { /* Switch on the conversion type to determine how to convert the acquired data */
+      case ADS_CONVERT_24_24: { /* Convert big-endian 24-bit values to little-endian 24-bit values */
+
+        for (size_t i = 0; i < DATA_LEN; i += 3) {
+          rev24(&spi_rx_buf[i + 1]);
+        }
+
+        memcpy(dst, &spi_rx_buf[4], 8 * 3); /* Copy the converted data to the output buffer */
+
+        /* Extract the status word from the received data */
+        uint32_t u32 = (uint32_t)  spi_rx_buf[1]       | 
+                       ((uint32_t) spi_rx_buf[2] << 8) | 
+                       ((uint32_t) spi_rx_buf[3] << 16);
+        u32 <<= 4;
+        u32 &= 0x00FFFFFF;
+        status |= u32;
+
+        if (status_word_req != 0) {         /* If a status word is requested, add it to the output buffer */
+          u32 = status | 0xFF000000;
+          memcpy(dst + 24, &u32, sizeof(status));
+          status = 0;
+        }
+
+        break;
+      }
+
+      case ADS_CONVERT_24_16: {
+
+        unsigned_24_t *src = (unsigned_24_t*)&spi_rx_buf[1];
+        uint16_t buf[DATA_LEN / 3 - 1];
+        
+        for (size_t i = 1; i < DATA_LEN / 3; i++) { 
+         
+          buf[i - 1] = __REV16(*(uint16_t*)&src[i]);  /* convert big-endian 24-bit value to    */
+                                                      /*     little-endian 16-bit one          */
+        }
+        
+        uint32_t d;
+        
+        *(unsigned_24_t *)(&d) = src[0];
+        
+        d = __REV(d) >> 8;
+        d <<= 4;
+        
+        status |= d;
+        
+        memcpy(dst, buf, 8 * sizeof(uint16_t));
+        
+        if (0 != status_word_req) {
+          d = status | 0xFF000000;                   /* Add packet-mark */
+          memcpy(dst + 8 * sizeof(uint16_t), &d, sizeof(d));
+          status = 0;
+        }
+
+        break;
+      }
+
+      case ADS_CONVERT_16_16: {
+
+        int16_t *src = (int16_t*)&spi_rx_buf[4];
+        
+        for (size_t i = 0; i < 8; i++) { 
+         
+          src[i] = __REV16(src[i]);                   /* convert big-endian 16-bit value to    */
+                                                      /*     little-endian 16-bit one          */
+        }
+        
+        uint32_t d;
+
+        d  = (uint32_t) spi_rx_buf[1] << 20;
+        d |= (uint32_t) spi_rx_buf[2] << 12;
+        d |= (uint32_t) spi_rx_buf[3] << 4;
+        
+        status |= d;
+        
+        memcpy(dst, src, 8 * sizeof(uint16_t));
+        
+        if (0 != status_word_req) {
+          d = status | 0xFF000000;                   /* Add packet-mark */
+          memcpy(dst + 8 * sizeof(uint16_t), &d, sizeof(d));
+          status = 0;
+        }
+
+        break;
+      }
+
+      default:
+        // If an invalid conversion type is specified, return 0
+        return 0;
+    }
+
+    return status_word_req; /* Return the status */
+}
+#endif
 
 // void handle_pin_interrupt(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
 //     // Exception handler
@@ -1558,10 +1976,13 @@ __STATIC_INLINE void ads_read_data(int *data) {
 // }
 
 
-static union {
-   status_reg_t status;
-   int channel[9];
-} ads1298_single_sample ;
+// typedef union {
+//    status_reg_t status;
+//    int channel[9];
+// } ads1298_sample_t ;
+
+//static int bkup[30][9];
+//static int bk_ndx;
 
 __STATIC_INLINE void init_ads1298(void) {
 
@@ -1603,10 +2024,7 @@ __STATIC_INLINE void init_ads1298(void) {
     NRF_LOG_INFO("ADS1298 configuration applied.");
   }
 
-  //nrf_gpio_cfg_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_NOPULL);
   nrf_gpio_cfg_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_PULLUP);
-  //nrf_gpio_cfg_sense_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_NOPULL, NRF_GPIO_PIN_SENSE_LOW, handle_pin_interrupt);
-  //NVIC_EnableIRQ(GPIOTE_IRQn);
 
   if (0 == nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
     NRF_LOG_INFO("ADS1298 DATA READY PIN IS LOW.");
@@ -1614,13 +2032,7 @@ __STATIC_INLINE void init_ads1298(void) {
     NRF_LOG_INFO("ADS1298 DATA READY PIN IS HIGH.");
   }
 
-  /* NOTE: When using the START opcode to begin conversions, hold the START pin low. */
-  ads_send_cmd(ADS129X_START);   /* START CONVERSION */
-
-  while (0 != nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
-    /* wait till conversion completes */
-  }
-  ads_read_data((int*)&ads1298_single_sample);   /* START CONVERSION */
+  //set_acquiring_state(ACQUIRING_REQUESTED);
 
 }
 
@@ -1792,7 +2204,8 @@ __STATIC_INLINE void init(void) {
 
   //NRF_LOG_INFO("MTU= %d", ble_nus_get_mtu(m_conn_handle)); 
 
-  printf("All modules are started.\r\n");
+  //printf("All modules are started.\r\n");
+  NRF_LOG_FLUSH();
 }
 
 
@@ -1802,4 +2215,18 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name) {
 
   app_error_handler(DEAD_FACE, line_num, p_file_name);
 }
+
+
+__STATIC_FORCEINLINE void set_acquiring_state(acquiring_state_t s) {
+  extern acquiring_state_t volatile acquring_state;
+  acquring_state = s;
+}
+
+__STATIC_FORCEINLINE acquiring_state_t get_acquiring_state(void) {
+  extern acquiring_state_t volatile acquring_state;
+  return acquring_state;
+}
+
+
+acquiring_state_t volatile acquring_state = ACQUIRING_INACTIVE;
 
