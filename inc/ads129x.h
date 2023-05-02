@@ -183,9 +183,9 @@ enum ADS129X_CONFIG1_BIT {
   HIGH_RES_2k_SPS  = (HR  | DR2       ),
   HIGH_RES_1k_SPS  = (HR  | DR2 | DR0 ),
   HIGH_RES_500_SPS = (HR  | DR2 | DR1 ),
-  LOW_POWR_250_SPS = (DR2 | DR1       ),
+  LOW_PWR_250_SPS  = (DR2 | DR1       ),
 
-  CONFIG1_CONST    = LOW_POWR_250_SPS
+  CONFIG1_CONST    = LOW_PWR_250_SPS
 };
 
 enum ADS129X_CONFIG2_BIT {
@@ -636,6 +636,10 @@ typedef struct {
 typedef struct {
   uint8_t data[27];
 } rdata_t;
+
+
+__STATIC_FORCEINLINE void set_acquiring_mode(unsigned mode);
+__STATIC_FORCEINLINE unsigned get_acquiring_mode(void);
 
 
 #ifdef __cplusplus
