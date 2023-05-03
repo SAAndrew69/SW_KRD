@@ -207,6 +207,7 @@ static void handle_rtc_event(nrf_drv_rtc_int_type_t int_type) {
 }
 #else
 static void handle_rtc_event(nrf_drv_rtc_int_type_t int_type) {
+
   /*
   
     This function is an event handler for RTC module events.
@@ -1193,9 +1194,17 @@ static uint16_t m_ble_nus_max_data_len = NRF_SDH_BLE_GATT_MAX_MTU_SIZE - 2; /* M
 #endif
 
 
+/**
+ * @brief Function for handling Bluetooth stack events.
+ *
+ * This function is called by the SoftDevice on Bluetooth stack events. It takes a pointer to a
+ * ble_evt_t structure and a void pointer to context data.
+ *
+ * @param[in] p_ble_evt Pointer to the Bluetooth stack event structure.
+ * @param[in] p_context Pointer to context data.
+ */
+#if 0
 static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
-
-  /* Handle blutooth stack events */
 
   uint32_t err_code;
   ble_gap_evt_t const * p_gap_evt = &p_ble_evt->evt.gap_evt;
@@ -1210,16 +1219,13 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
       err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
       APP_ERROR_CHECK(err_code);
 
-      #if 1
         ble_gap_phys_t const phys = {
           .tx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
           .rx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
         };
         err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
         APP_ERROR_CHECK(err_code);
-      #endif
 
-      #if 1
         ble_gap_conn_params_t   gap_conn_params = {
           .min_conn_interval = MIN_CONN_INTERVAL,
           .max_conn_interval = MIN_CONN_INTERVAL,
@@ -1228,7 +1234,6 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
         };
         err_code = sd_ble_gap_conn_param_update(m_conn_handle /*p_gap_evt->conn_handle*/, &gap_conn_params);
         APP_ERROR_CHECK(err_code);
-      #endif
 
       err_code = sd_ble_gap_rssi_start(m_conn_handle, 0, 0);		
       APP_ERROR_CHECK(err_code);
@@ -1251,7 +1256,6 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
             p_gap_evt->params.conn_param_update.conn_params.max_conn_interval);
     } break;
 
-#if 1
     case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST: {
         // Accept parameters requested by the peer.
         ble_gap_conn_params_t params;
@@ -1266,7 +1270,6 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
         conn_evt_len_ext_set(true);
 
     } break;
-#endif
 
     case BLE_GAP_EVT_PHY_UPDATE: {
         ble_gap_evt_phy_update_t const * p_phy_evt = &p_ble_evt->evt.gap_evt.params.phy_update;
@@ -1344,11 +1347,199 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
       break;
   }
 }
+#else
+static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
+	
+  uint32_t err_code;
+  ble_gap_evt_t const * p_gap_evt = &p_ble_evt->evt.gap_evt;
 
+  switch (p_ble_evt->header.evt_id) {
 
+    case BLE_GAP_EVT_CONNECTED:
+
+      /* Indicate that a connection has been established */
+
+      NRF_LOG_INFO("Connected");
+      err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+      APP_ERROR_CHECK(err_code);
+
+      /* Remember the handle of the current connection */
+      m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+
+      /* Assign the connection handle to the QWR module */
+      err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
+      APP_ERROR_CHECK(err_code);
+
+      /* Update the PHY to support all available speeds */
+      ble_gap_phys_t const phys = {
+        .tx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
+        .rx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
+      };
+      err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+      APP_ERROR_CHECK(err_code);
+
+      /* Update the connection parameters */
+      ble_gap_conn_params_t gap_conn_params = {
+        .min_conn_interval = MIN_CONN_INTERVAL,
+        .max_conn_interval = MIN_CONN_INTERVAL,
+        .slave_latency     = SLAVE_LATENCY,
+        .conn_sup_timeout  = CONN_SUP_TIMEOUT,
+      };
+      err_code = sd_ble_gap_conn_param_update(m_conn_handle, &gap_conn_params);
+      APP_ERROR_CHECK(err_code);
+
+      /* Start RSSI measurements */
+      err_code = sd_ble_gap_rssi_start(m_conn_handle, 0, 0);
+      APP_ERROR_CHECK(err_code);
+
+      break;
+
+    case BLE_GAP_EVT_DISCONNECTED:
+	
+      /* Indicate that the connection has been lost */
+      NRF_LOG_INFO("Disconnected");
+
+      /* Reset connection handle */
+      m_conn_handle = BLE_CONN_HANDLE_INVALID;
+
+      /* Set the acquiring subsystem to an inactive state */
+      set_acquiring_state(ACQUIRING_INACTIVE);
+
+      break;
+
+    case BLE_GAP_EVT_CONN_PARAM_UPDATE:
+	
+      /* Connection parameter update event */
+	  
+      NRF_LOG_INFO("Connection interval updated: 0x%x, 0x%x.",
+          p_gap_evt->params.conn_param_update.conn_params.min_conn_interval,
+          p_gap_evt->params.conn_param_update.conn_params.max_conn_interval);
+      break;
+
+    case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
+	
+      /* Connection parameter update request event */
+      {
+        ble_gap_conn_params_t params;
+        params = p_gap_evt->params.conn_param_update_request.conn_params;
+        err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle, &params);
+        APP_ERROR_CHECK(err_code);
+        
+        NRF_LOG_INFO("Connection interval updated (upon request): 0x%x, 0x%x.",
+            p_gap_evt->params.conn_param_update_request.conn_params.min_conn_interval,
+            p_gap_evt->params.conn_param_update_request.conn_params.max_conn_interval);
+        
+        /* Enable the use of extended connection event length */
+        conn_evt_len_ext_set(true);
+      }
+
+      break;
+
+    case BLE_GAP_EVT_PHY_UPDATE:
+	
+      /* PHY update event */
+	
+      {  
+        ble_gap_evt_phy_update_t const * p_phy_evt = &p_ble_evt->evt.gap_evt.params.phy_update;
+        
+        if (p_phy_evt->status == BLE_HCI_STATUS_CODE_LMP_ERROR_TRANSACTION_COLLISION) {
+	  	  
+          /* Ignore LL collisions */
+          NRF_LOG_DEBUG("LL transaction collision during PHY update.");
+          break;
+        }
+        
+        ble_gap_phys_t phys = {
+          .tx_phys = p_phy_evt->tx_phy,
+          .rx_phys = p_phy_evt->rx_phy
+        };
+        NRF_LOG_INFO("PHY update %s. PHY set to %s.",
+            (p_phy_evt->status == BLE_HCI_STATUS_CODE_SUCCESS) ?
+            "accepted" : "rejected",
+            phy_str(phys));
+      }
+
+      break;
+
+    case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
+	
+      /* PHY update request event */
+      {
+        ble_gap_phys_t const phys = {
+          .tx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
+          .rx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
+        };
+        err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+        APP_ERROR_CHECK(err_code);
+      }
+
+      break;
+
+    case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+	
+      /* Security parameters request event */
+      /* Reject pairing */
+	  
+      err_code = sd_ble_gap_sec_params_reply(m_conn_handle,BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+      APP_ERROR_CHECK(err_code);
+
+      break;
+
+    case BLE_GATTS_EVT_SYS_ATTR_MISSING:
+	
+      /* GATT server system attributes missing event */
+      /* Set system attributes to default values */
+	  
+      err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
+      APP_ERROR_CHECK(err_code);
+
+      break;
+
+    case BLE_GATTC_EVT_TIMEOUT:
+	
+      /* GATT client timeout event */
+      /* Disconnect from the peer device */
+	  
+      err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
+                                       BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+      APP_ERROR_CHECK(err_code);
+
+      /* Stop RSSI measurements */
+      err_code = sd_ble_gap_rssi_stop(m_conn_handle);
+      APP_ERROR_CHECK(err_code);
+
+      break;
+
+    case BLE_GATTS_EVT_TIMEOUT:
+	
+      /* GATT server timeout event */
+      /* Disconnect from the peer device */
+	  
+      err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
+                                       BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+      APP_ERROR_CHECK(err_code);
+
+      /* Stop RSSI measurements */
+      err_code = sd_ble_gap_rssi_stop(m_conn_handle);
+      APP_ERROR_CHECK(err_code);
+
+      break;
+
+    default:
+      // Unknown event, do nothing
+      break;
+  }
+}
+#endif
+
+/**
+ * Initializes the BLE stack.
+ *
+ * This function initializes the SoftDevice and the BLE event interrupt.
+ * It configures the BLE stack using the default settings, enables the BLE stack,
+ * and registers a handler for BLE events.
+ */
 __STATIC_INLINE void init_ble_stack(void) {
-
-  /* Initialize the SoftDevice and the BLE event interrupt */
 
   ret_code_t err_code;
 
@@ -1373,6 +1564,7 @@ __STATIC_INLINE void init_ble_stack(void) {
 NRF_BLE_GATT_DEF(m_gatt);  /* GATT module instance.      */
 
 
+#if 0
 static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt) {
 
   /* Handle events from the GATT library */
@@ -1386,6 +1578,33 @@ static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const 
                 p_gatt->att_mtu_desired_central,
                 p_gatt->att_mtu_desired_periph);
 }
+
+#else
+/**
+ * Handles GATT events.
+ *
+ * @param[in] p_gatt Pointer to the GATT instance.
+ * @param[in] p_evt  Pointer to the GATT event.
+ */
+static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt) {
+
+    /* Check if the connection handle matches and if the event is an ATT MTU update event */
+    if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED)) {
+
+        /* Calculate the effective maximum data length and update the value of m_ble_nus_max_data_len */
+        /* ATT MTU = ATT Protocol Data Unit (PDU) length - opcode length - handle length */
+
+        m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
+
+        NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
+    }
+
+    /* Log the ATT MTU exchange status */
+    NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
+                  p_gatt->att_mtu_desired_central,
+                  p_gatt->att_mtu_desired_periph);
+}
+#endif
 
 //#define CUSTOM_MTU 219
 #define CUSTOM_MTU 247
