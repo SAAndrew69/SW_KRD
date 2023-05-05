@@ -1,29 +1,41 @@
 #include "main.h"
 
-unsigned tr_count;
-
+/* Main program entry point */
 int main(void) {
 
-  init(); /* Initialize the system */
+  /* Initialize the system */
+  init();
 
-  for (;;) { /* Enter an infinite loop to handle events */
-    
-    handle_idle_state(); /* Do all the work" */
+  /* Enter an infinite loop to handle events */
+  for (;;) {
+
+    /* Perform all necessary processing in the idle state */
+    handle_idle_state();
 
   }
 
   /*
-   
-    The program should never exit the infinite loop, but if it does, 
-    halt the system. This is a safety measure to prevent undefined behavior.
-
+     The program is not expected to exit this infinite loop. However, if it does, 
+     the following code will execute as a safety measure to prevent undefined behavior.
+     
+     The "__WFE()" function waits until an event occurs before resuming execution,
+     while "__SEV()" sets a flag indicating that an event has occurred. This flag
+     is then checked by "__WFE()" to ensure that the system enters a low-power state
+     only if an event has actually occurred.
+     
+     Note that these functions may not be sufficient to handle all types of undefined 
+     behavior that could occur in the program. Therefore, it is important to write 
+     correct and well-defined code to avoid undefined behavior wherever possible.
   */
 
-  __WFE(); /* Reset pending flag      */
-  __SEV(); /* Send Event              */
-  __WFE(); /* Enter a low-power state */
+  __WFE(); /* Wait for event */
+  __SEV(); /* Set event flag */
+  __WFE(); /* Wait for event and enter a low-power state */
 
 }
+
+
+unsigned tr_count;
 
 
 __STATIC_INLINE void enable_vdd(void) {
@@ -634,7 +646,14 @@ __STATIC_INLINE void write_factor_register(const uint8_t * t, unsigned len) {
   }
 }
 
-
+/**
+ * @brief Function to get the RSSI and channel information from the radio.
+ *
+ * @param None.
+ * 
+ * @return None.
+ */
+#if 0
 __STATIC_INLINE void get_rssi(void) {
 
   NRF_LOG_INFO("'i' command: rssi processed.");
@@ -647,8 +666,33 @@ __STATIC_INLINE void get_rssi(void) {
   unsigned len = snprintf(buf, sizeof(buf), "RSSI: %ddBm, Ch: %u\n", r, ch);
   ble_output((uint8_t *)&buf, len);
 }
+#else
+__STATIC_INLINE void get_rssi(void) {
 
+  /* Print to the log that the 'i' command for RSSI has been processed */
+  NRF_LOG_INFO("'i' command: rssi processed.");
 
+  /* Create a buffer to use it in snprintf function */
+  char buf[80];
+
+  /* Get the RSSI and channel information */
+  uint16_t d = rssi();
+
+  /* Extract the RSSI value from the returned data and convert it to an 8-bit integer */
+  int8_t r = (int8_t) d & 0xFF;
+
+  /* Extract the channel information from the returned data */
+  uint8_t ch = d >> 8;
+
+  /* Format the RSSI and channel information into a string and store it in the buffer */
+  unsigned len = snprintf(buf, sizeof(buf), "RSSI: %ddBm, Ch: %u\n", r, ch);
+
+  /* Send the formatted string to the ble_output function to be output over Bluetooth Low Energy */
+  ble_output((uint8_t *)&buf, len);
+}
+#endif
+
+#if 0
 __STATIC_INLINE void get_current_time(void) { /* process 't' command */
 
   NRF_LOG_INFO("'t' command: current time sent.");
@@ -661,6 +705,34 @@ __STATIC_INLINE void get_current_time(void) { /* process 't' command */
   unsigned len = snprintf(buf, sizeof(buf), "%02u.%02u.%02u %02u:%02u:%02u\n", t.day, t.month, t.year, t.hour, t.minute, t.second);
   ble_output((uint8_t *)&buf, len);
 }
+#else
+/**
+ * @brief Sends the current time over BLE in the format "DD.MM.YY HH:MM:SS"
+ *
+ * This function converts the current Unix time (stored in the global variable 'unix_time') 
+ * to a human-readable time structure using the 'unixtime_to_time' function. Then, it formats 
+ * the time structure into a string using the specified format and sends it over BLE using 
+ * the 'ble_output' function.
+ *
+ * @note The 'ble_output' function takes a pointer to a buffer containing the data to be sent 
+ * and the length of the data. Therefore, there is no need to cast the buffer to uint8_t*.
+ */
+__STATIC_INLINE void get_current_time(void) {
+
+  NRF_LOG_INFO("'t' command: current time sent.");
+  
+  /* Convert Unix time to time structure */
+  time_struct_t t;
+  unixtime_to_time(unix_time, &t);
+
+  /* Format time structure into string */
+  char buf[80];
+  unsigned len = snprintf(buf, sizeof(buf), "%02u.%02u.%02u %02u:%02u:%02u\n", t.day, t.month, t.year, t.hour, t.minute, t.second);
+
+  /* Send string over BLE */
+  ble_output((uint8_t*)buf, len);
+}
+#endif
 
 #if 0
 __STATIC_INLINE void set_time(const uint8_t * t, unsigned len) {
@@ -1704,42 +1776,67 @@ __STATIC_INLINE void init_uart(void) {
 }
 
 
+/**
+ * @brief Handles BLE advertising events passed to the application.
+ *
+ * This function is called by the BLE stack when an advertising event occurs. It evaluates
+ * the incoming event and takes appropriate action. If the event is "fast" advertising, the
+ * BSP indication is set to indicate that the device is currently advertising. If the event is
+ * "idle", the device enters a low-power sleep mode. Otherwise, the function does nothing.
+ *
+ * @param[in] ble_adv_evt The advertising event to handle.
+ */
 static void handle_advertising_event(ble_adv_evt_t ble_adv_evt) {
-
-  /* Handle advertising events which are passed to the application */
 
   uint32_t err_code;
 
   switch (ble_adv_evt) {
+
+    /* If the advertising event is "fast" advertising, set the BSP indication to advertising */
     case BLE_ADV_EVT_FAST:
       err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
       APP_ERROR_CHECK(err_code);
       break;
 
+    /* If the advertising event is "idle", enter sleep mode */
     case BLE_ADV_EVT_IDLE:
       enter_sleep_mode();
       break;
 
+    /* Do nothing if the advertising event is neither "fast" nor "idle" */
     default:
        break;
   }
 }
 
 
-static ble_uuid_t m_adv_uuids[]          = {{BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}}; /* Universally unique service identifier. */
-BLE_ADVERTISING_DEF(m_advertising);                                                         /* Advertising module instance.           */
+static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}}; /* Universally unique service identifier. */
+BLE_ADVERTISING_DEF(m_advertising);                                                /* Advertising module instance.           */
 
 
+/**
+ * @brief Handles events from the Board Support Package (BSP) module.
+ *
+ * This function is called by the BSP module when an event occurs. It evaluates the incoming
+ * event and takes appropriate action. If the event is "sleep", the device enters a low-power
+ * sleep mode. If the event is "disconnect", the device disconnects from the current BLE
+ * connection. If the event is "whitelist off" and there is no active connection, advertising is
+ * restarted without a whitelist. Otherwise, the function does nothing.
+ *
+ * @param[in] event The event to handle.
+ */
 static void handle_bsp_event(bsp_event_t event) {
 
-  /* Handle events from the BSP module */
-
   uint32_t err_code;
+  
   switch (event) {
+
+    /* If the event is "sleep", enter sleep mode */
     case BSP_EVENT_SLEEP:
       enter_sleep_mode();
       break;
 
+    /* If the event is "disconnect", disconnect from the current BLE connection */
     case BSP_EVENT_DISCONNECT:
       err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
       if (err_code != NRF_ERROR_INVALID_STATE) {
@@ -1747,6 +1844,7 @@ static void handle_bsp_event(bsp_event_t event) {
       }
       break;
 
+    /* If the event is "whitelist off" and there is no active connection, restart advertising without a whitelist */
     case BSP_EVENT_WHITELIST_OFF:
       if (m_conn_handle == BLE_CONN_HANDLE_INVALID) {
         err_code = ble_advertising_restart_without_whitelist(&m_advertising);
@@ -1756,12 +1854,21 @@ static void handle_bsp_event(bsp_event_t event) {
       }
       break;
 
+    /* Do nothing if the event is not one of the expected types */
     default:
       break;
   }
 }
 
 
+/**
+ * @brief Initializes the Bluetooth Low Energy (BLE) advertising functionality.
+ *
+ * This function initializes the BLE advertising functionality by setting up the advertising
+ * data and configuration, as well as registering an event handler. The advertising data
+ * includes the device name, flags, and UUIDs. The advertising configuration includes the
+ * advertising interval and timeout. The event handler is used to handle advertising events.
+ */
 #if 0
 __STATIC_INLINE void init_advertising(void) {
 
@@ -1797,9 +1904,9 @@ __STATIC_INLINE void init_advertising(void) {
 #else
 __STATIC_INLINE void init_advertising(void) {
 
-  /* Initialize the Advertising functionality */
-
   uint32_t err_code;
+
+  /* Set up the advertising data and configuration */
   ble_advertising_init_t init = {
     .advdata.name_type          = BLE_ADVDATA_FULL_NAME,
     .advdata.include_appearance = false,
@@ -1819,9 +1926,11 @@ __STATIC_INLINE void init_advertising(void) {
     .evt_handler = handle_advertising_event
   };
 
+  /* Initialize the advertising module with the specified data and configuration */
   err_code = ble_advertising_init(&m_advertising, &init);
   APP_ERROR_CHECK(err_code);
 
+  /* Set the connection configuration tag for the advertising module */
   ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
 }
 #endif
@@ -2102,7 +2211,7 @@ __STATIC_INLINE void init_spim(void) {
     .ss_active_high = false,
     .irq_priority = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
     .orc = 0xFF,
-    .frequency = NRF_SPIM_FREQ_1M,
+    .frequency = NRF_SPIM_FREQ_16M,
     .mode = NRF_SPIM_MODE_1,
     .bit_order = NRF_SPIM_BIT_ORDER_MSB_FIRST,
     NRFX_SPIM_DEFAULT_EXTENDED_CONFIG /* Extended configuration */
@@ -2604,6 +2713,8 @@ __STATIC_INLINE void init_ads1298(void) {
     NRF_LOG_INFO("ADS1298 DATA READY PIN IS HIGH.");
   }
 
+  NRF_LOG_FLUSH();
+
   //set_acquiring_state(ACQUIRING_REQUESTED);
 
 }
@@ -2958,6 +3069,6 @@ __STATIC_FORCEINLINE unsigned get_acquiring_mode(void) {
   LOW_PWR_250_SPS
 */
 
-unsigned acquiring_mode = HIGH_RES_8k_SPS;
+unsigned acquiring_mode = HIGH_RES_16k_SPS;
 acquiring_state_t volatile acquiring_state = ACQUIRING_INACTIVE;
 

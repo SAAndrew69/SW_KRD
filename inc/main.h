@@ -41,15 +41,15 @@
 
 #include "ads129x.h"
 
-#define DEVICE_NAME                     "CARDIOGLB_18"                       /* Name of device. Will be included in the advertising data.                                       */
+#define DEVICE_NAME                     "CARDIOGLB_18"                    /* Name of device. Will be included in the advertising data.                                       */
 
 #if defined(__CROSSWORKS_ARM) || defined(__SES_ARM)
-  #define DEVICE_SERIAL_NO              "SPG-020-%08X-%08X"
+  #define DEVICE_SERIAL_NO              "SPG-021-%08X-%08X"
 #else
   #define DEVICE_SERIAL_NO              "SPG-020-%08lX-%08lX"
 #endif
 
-#define DEVICE_FIRMWARE_VERSION         "0.0.4"
+#define DEVICE_FIRMWARE_VERSION         "0.0.5"
 
 #define APP_BLE_CONN_CFG_TAG            1                                 /* A tag identifying the SoftDevice BLE configuration.                                             */
 #define APP_BLE_OBSERVER_PRIO           3                                 /* Application's BLE observer priority. You shouldn't need to modify this value.                   */
@@ -60,13 +60,13 @@
 
 #define DEFAULT_CONN_INTERVAL           (uint16_t)(MSEC_TO_UNITS(7.5, UNIT_1_25_MS))
 
-//#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)   /* Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units.         */
+//#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)   /* Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units.       */
 #define MIN_CONN_INTERVAL               (uint16_t)(MSEC_TO_UNITS(7.5, UNIT_1_25_MS))
 #define MAX_CONN_INTERVAL               (uint16_t)(MSEC_TO_UNITS(7.5, UNIT_1_25_MS))   /* Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units.         */
 #define SLAVE_LATENCY                   0                                 /* Slave latency.                                                                                  */
 #define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)   /* Connection supervisory timeout (4 seconds), Supervision Timeout uses 10 ms units.               */
 
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(15000)             /* Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(15000)            /* Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000)            /* Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds).       */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                 /* Number of attempts before giving up the connection parameter negotiation.                       */
 
@@ -77,32 +77,16 @@
 
 #define SPI_INSTANCE                    0                                 /* SPI instance index.                                                                             */
 
-#if 0
-#define NRFX_SPIM_SCK_PIN               3
-#define NRFX_SPIM_MOSI_PIN              4
-#define NRFX_SPIM_MISO_PIN              28
-#if 0
-  #define NRFX_SPIM_SS_PIN              29
-#else
-  #define NRFX_SPIM_SS_PIN              NRFX_SPIM_PIN_NOT_USED
-#endif
-#define NRFX_SPIM_DCX_PIN               30
-#else
-
 #define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 2)            /* SCK pin  - P0.02 */
 #define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 27)           /* MOSI pin - P0.27 */
 #define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(0, 26)           /* MISO pin - P0.26 */
 #define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 15)           /* CS pin   - P1.15 */
 //#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
 
-#endif
+#define ADS_START_PIN                   NRF_GPIO_PIN_MAP(1, 14)
+#define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 13)
+#define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 12)
 
-#define ADS_START_PIN                  NRF_GPIO_PIN_MAP(1, 14)
-#define ADS_DATA_READY_PIN             NRF_GPIO_PIN_MAP(1, 13)
-#define ADS_RESET_PIN                  NRF_GPIO_PIN_MAP(1, 12)
-
-
-#define SPI_TEST_STRING                 "Just for testing 01234567890!"
 
 #define TWI_INSTANCE_ID                 1                                 /* TWI instance ID. */
 #if 0
