@@ -18,18 +18,10 @@ int main(void) {
      The program is not expected to exit this infinite loop. However, if it does, 
      the following code will execute as a safety measure to prevent undefined behavior.
      
-     The "__WFE()" function waits until an event occurs before resuming execution,
-     while "__SEV()" sets a flag indicating that an event has occurred. This flag
-     is then checked by "__WFE()" to ensure that the system enters a low-power state
-     only if an event has actually occurred.
-     
-     Note that these functions may not be sufficient to handle all types of undefined 
-     behavior that could occur in the program. Therefore, it is important to write 
-     correct and well-defined code to avoid undefined behavior wherever possible.
   */
 
-  __WFE(); /* Wait for event */
-  __SEV(); /* Set event flag */
+  __SEV(); /* Set event flag   */
+  __WFE(); /* Reset event flag */
   __WFE(); /* Wait for event and enter a low-power state */
 
 }
@@ -2002,10 +1994,21 @@ static nrfx_spim_xfer_desc_t xfer = {.p_tx_buffer = (uint8_t const *)(spi_tx_buf
 #define ADS_BLOCK_24_COUNT 10
 #define BLOCKS_TO_SEND 10000UL
 
+
+typedef union {
+  uint8_t buf[MAX_DATA_LENGTH];
+  uint8_t b[MAX_DATA_LENGTH / 8][8];
+  uint32_t id;
+} x_union_t;
+
+#if 0
 static union {
   uint8_t buf[MAX_DATA_LENGTH];
   uint32_t id;
 } x;
+#else
+static x_union_t x, y;
+#endif
 
 static uint8_t bndx;
 
@@ -2119,12 +2122,15 @@ __STATIC_INLINE void handle_idle_state(void) {
     }
     #else
 
-    void *p = x.buf + 16 * bndx++;
+    void *p = x.buf + 24 * bndx++;
 
-    if (ads_finish_acquiring(p, ADS_CONVERT_16_16, bndx == ADS_BLOCK_16_COUNT)) {
+    if (ads_finish_acquiring(p, ADS_CONVERT_24_24 /* ADS_CONVERT_24_16 */ /* ADS_CONVERT_16_16 */, bndx == ADS_BLOCK_24_COUNT)) {
       bndx = 0;
       tr_count++;
       ble_output(x.buf, MAX_DATA_LENGTH);
+      if (0 == y.id) {
+        y = x;
+      }
       memset(x.buf, 0, MAX_DATA_LENGTH);
     }
 
@@ -2556,9 +2562,9 @@ __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t co
     switch (conv_type) { /* Switch on the conversion type to determine how to convert the acquired data */
       case ADS_CONVERT_24_24: { /* Convert big-endian 24-bit values to little-endian 24-bit values */
 
-        for (size_t i = 0; i < DATA_LEN; i += 3) {
-          rev24(&spi_rx_buf[i + 1]);
-        }
+        //for (size_t i = 0; i < DATA_LEN; i += 3) {
+        //  rev24(&spi_rx_buf[i + 1]);
+        //}
 
         memcpy(dst, &spi_rx_buf[4], 8 * 3); /* Copy the converted data to the output buffer */
 
@@ -2666,8 +2672,8 @@ __STATIC_INLINE void init_ads1298(void) {
 
   /* Configure ADS1298 Chip */
   
-  register_pool_t r, reg_pool;
-  uint8_t n = sizeof(register_pool_t);
+  register_pool_t r, reg_pool = ADS1298_WORKING_CONFIG;
+  // uint8_t n = sizeof(register_pool_t);
 
   nrf_gpio_cfg_output(ADS_RESET_PIN);
 
@@ -2684,25 +2690,28 @@ __STATIC_INLINE void init_ads1298(void) {
 
   /* Detect ADS1298 presence */
 
-  ads_read_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);          /* Read ADS129x ID    */
+  ads_read_reg(ADS129X_ID, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);                 /* Read ADS129x ID    */
 
-  if(ID_ADS1298 == reg_pool.ID) { 
+  if(ID_ADS1298 == r.ID) { 
     NRF_LOG_INFO("ADS1298 Analog Front-End detected:");
-    NRF_LOG_HEXDUMP_INFO((uint8_t *)&reg_pool, ADS129X_REG_POOL_SIZE);
+    NRF_LOG_HEXDUMP_INFO((uint8_t *)&r, ADS129X_REG_POOL_SIZE);
   } else {
     NRF_LOG_ERROR("No ADS129x Analog Front-End detected!");
   }
 
-  //reg_pool = ADS1298_CONFIG;
+  //reg_pool = ADS1298_WORKING_CONFIG;
   reg_pool.CONFIG1 = get_acquiring_mode();
 
-  ads_write_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
+  ads_write_reg(ADS129X_ID, ADS129X_REG_POOL_SIZE, (uint8_t*)&reg_pool);
   r = reg_pool;
-  memset(&reg_pool, 0, n);
-  ads_read_reg(ADS129X_ID, n, (uint8_t*)&reg_pool);
+  memset(&reg_pool, 0, ADS129X_REG_POOL_SIZE);
+  ads_read_reg(ADS129X_ID, ADS129X_REG_POOL_SIZE, (uint8_t*)&reg_pool);
 
-  if (0 == memcmp((void*)&r, (void*)&reg_pool, n)) {
+  if (0 == memcmp((void*)&r, (void*)&reg_pool, ADS129X_REG_POOL_SIZE)) {
     NRF_LOG_INFO("ADS1298 configuration applied.");
+  } else {
+    NRF_LOG_INFO("ADS1298 configuration mismatch.");
+    NRF_LOG_HEXDUMP_INFO((uint8_t *)&reg_pool, ADS129X_REG_POOL_SIZE);
   }
 
   nrf_gpio_cfg_input(ADS_DATA_READY_PIN, NRF_GPIO_PIN_PULLUP);
@@ -2832,11 +2841,11 @@ __STATIC_INLINE void init_twi(void) {
 
   /* Define a TWI configuration struct with the desired settings */
   const nrf_drv_twi_config_t twi_config = {
-    .scl                = NRF_TWI_SCL_PIN,       /* Pin number for the SCL pin */
-    .sda                = NRF_TWI_SDA_PIN,       /* Pin number for the SDA pin */
-    .frequency          = NRF_DRV_TWI_FREQ_100K, /* TWI frequency set to 100kHz */
-    .interrupt_priority = APP_IRQ_PRIORITY_HIGH, /* Interrupt priority set to high */
-    .clear_bus_init     = false                  /* Do not clear bus during initialization */
+    .scl                = NRF_TWI_SCL_PIN,              /* Pin number for the SCL pin             */
+    .sda                = NRF_TWI_SDA_PIN,              /* Pin number for the SDA pin             */
+    .frequency          = NRF_DRV_TWI_FREQ_100K,        /* TWI frequency set to 100kHz            */
+    .interrupt_priority = APP_IRQ_PRIORITY_HIGH,        /* Interrupt priority set to high         */
+    .clear_bus_init     = false                         /* Do not clear bus during initialization */
   };
 
   /* Initialize the TWI peripheral with the specified configuration and an event handler function */
@@ -3069,6 +3078,7 @@ __STATIC_FORCEINLINE unsigned get_acquiring_mode(void) {
   LOW_PWR_250_SPS
 */
 
-unsigned acquiring_mode = HIGH_RES_16k_SPS;
+//unsigned acquiring_mode = HIGH_RES_16k_SPS;
+unsigned acquiring_mode = ADS1298_R_CONFIG1;
 acquiring_state_t volatile acquiring_state = ACQUIRING_INACTIVE;
 

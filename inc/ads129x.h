@@ -9,12 +9,43 @@ typedef enum {
   ADS_CONVERT_16_8,
   ADS_CONVERT_16_16,
   ADS_CONVERT_24_16,
-  ADS_CONVERT_24_24
+  ADS_CONVERT_24_24,
+  ADS_CONVERT_NONE
 } ads_convert_t;
 
 /* ADS129x Configuration */
+
+#define ADS1298_R_CONFIG1  HIGH_RES_500_SPS /* (0x86) = (HR  | DR2 | DR1 )     */
+
+#define ADS1298_R_CONFIG3  (     /* ( 0xDC )  */  \
+  ADS129X_CONFIG3_PD_REFBUF   |  /* (1 << 7)  */  \
+  ADS129X_CONFIG3_RLD_MEAS    |  /* (1 << 4)  */  \
+  ADS129X_CONFIG3_RLDREF_INT  |  /* (1 << 3)  */  \
+  ADS129X_CONFIG3_PD_RLD         /* (1 << 2), */  \
+)
+
+#define ADS1298_WORKING_CONFIG {      \
+  .CONFIG1       = ADS1298_R_CONFIG1, \
+  .CONFIG3	 = ADS1298_R_CONFIG3, \
+  .LOFF	         = 0x03,              \
+  .CH1SET        = GAIN_1X,          \
+  .CH2SET        = GAIN_1X,          \
+  .CH3SET        = GAIN_1X,          \
+  .CH4SET        = GAIN_1X,          \
+  .CH5SET        = GAIN_1X,          \
+  .CH6SET        = GAIN_1X,          \
+  .CH7SET        = GAIN_1X,          \
+  .CH8SET        = GAIN_1X,          \
+  .LOFF_SENSP    = 0xFF,              \
+  .LOFF_SENSN    = 0x02,              \
+  .RESP	         = 0xF0,              \
+  .CONFIG4	 = 0x22,              \
+  .WCT1	         = 0x0A,              \
+  .WCT2	         = 0xE3               \
+}
+
 #if !0 
-  #define ADS1298_CONFIG {            \
+  #define ADS1298_DEFAULT_CONFIG {    \
     .ID          = 0x92,              \
     .CONFIG1     = HIGH_RES_32k_SPS,  \
     .CONFIG3     = CONFIG3_CONST,     \
@@ -50,6 +81,8 @@ typedef enum {
     .WCT2        = 0x00               \
   }
 #endif
+
+#define ADS1298_CONFIG ADS1298_WORKING_CONFIG
 
 enum ADS129X_REGISTER_POOL_SIZE {
   ADS129X_REG_POOL_SIZE = 26
@@ -203,13 +236,13 @@ enum ADS129X_CONFIG2_BIT {
 };
 
 enum ADS129X_CONFIG3_BIT {
-  PD_REFBUF        = 0x80,
-  VREF_4V          = 0x20,
-  RLD_MEAS         = 0x10,
-  RLDREF_INT       = 0x08,
-  PD_RLD           = 0x04,
-  RLD_LOFF_SENS    = 0x02,
-  RLD_STAT         = 0x01,
+  ADS129X_CONFIG3_PD_REFBUF        = 0x80,
+  ADS129X_CONFIG3_VREF_4V          = 0x20,
+  ADS129X_CONFIG3_RLD_MEAS         = 0x10,
+  ADS129X_CONFIG3_RLDREF_INT       = 0x08,
+  ADS129X_CONFIG3_PD_RLD           = 0x04,
+  ADS129X_CONFIG3_RLD_LOFF_SENS    = 0x02,
+  ADS129X_CONFIG3_RLD_STAT         = 0x01,
 
   CONFIG3_CONST    = 0x40
 };
