@@ -408,7 +408,7 @@ __STATIC_INLINE uint16_t rssi(void) {
 
 __STATIC_INLINE void get_info(void) {          /* process 's' command */
 
-  /* Get firmware fersion, s/n, battery voltage and RSSI */
+  /* Get firmware version, s/n, battery voltage and RSSI */
 
   NRF_LOG_INFO("'s' command: info requested.");
 
@@ -455,6 +455,8 @@ __STATIC_INLINE void help(void) {        /* process 'h' command */
   char *h1 =
     "Command summary:\n"
     "\n"
+    "a - read ADS129x register pool\n"
+    "A - write data to register(s)\n"
     "b - start acquiring data\n"
     "c - get the single sample\n"
     "d - add the time offset\n"
@@ -683,6 +685,31 @@ __STATIC_INLINE void get_rssi(void) {
   ble_output((uint8_t *)&buf, len);
 }
 #endif
+
+static uint32_t reg_dump_req;
+
+
+__STATIC_INLINE void get_adc129x_config(void) {
+
+  /* Read offset register */
+
+  NRF_LOG_INFO("'a' command: register pool read.");
+
+  reg_dump_req = !0;
+
+  // char buf[] = {
+  //   0x92, 0x86, 0x00, 0xDC, 0x0A,
+  //   0x03, 0x00, 0x00, 0x00, 0x0A,
+  //   0x00, 0x00, 0x00, 0x00, 0x0A,
+  //   0x00, 0x00, 0x00, 0xFF, 0x0A,
+  //   0x02, 0x00, 0x00, 0x00, 0x0A,
+  //   0x00, 0x00, 0xF0, 0x22, 0x0A,
+  //   0x0A, 0xE3, 0x0A
+  // };
+  // //unsigned len = snprintf(buf, sizeof(buf), "Offset: %d\n", offset_register);
+  // ble_output((uint8_t *)&buf, sizeof(buf));  
+
+}
 
 #if 0
 __STATIC_INLINE void get_current_time(void) { /* process 't' command */
@@ -972,8 +999,12 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
     // if (buf[0] != 0) {
     //   buf[0] = 'x';
     // }
+    if ('a' == command) {
 
-    if (command == 's') {
+      get_adc129x_config(); 
+      p_evt->params.rx_data.length = 0;
+
+    } else if (command == 's') {
 
       get_info();
       p_evt->params.rx_data.length = 0;
@@ -2050,6 +2081,25 @@ __STATIC_INLINE void handle_idle_state(void) {
 
     help();
     print_help = 0;
+
+  } else if (reg_dump_req != 0) {
+
+    uint8_t buf[ADS129X_REG_POOL_SIZE];
+    int ndx = 0;
+    ads_read_reg(0, ADS129X_REG_POOL_SIZE, buf);
+
+    char ch[3] = ", \x0";
+
+    for (size_t x = 0; x < ADS129X_REG_POOL_SIZE; x++) {
+      if (x == ADS129X_REG_POOL_SIZE - 1) {
+        ch[0] = 0; ch[1] = 0;
+      }
+      ndx += snprintf((char*)&y.buf[ndx], sizeof(y.buf) - ndx, "%02X%s", buf[x], ch);
+
+    }
+
+    ble_output(y.buf, ADS129X_REG_POOL_SIZE * 4 - 2);
+    reg_dump_req = 0;
 
   } else if (test_req != 0) {
 

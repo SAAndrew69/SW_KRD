@@ -674,6 +674,8 @@ typedef struct {
 __STATIC_FORCEINLINE void set_acquiring_mode(unsigned mode);
 __STATIC_FORCEINLINE unsigned get_acquiring_mode(void);
 
+__STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data);
+
 
 #ifdef __cplusplus
 }
