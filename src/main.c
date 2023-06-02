@@ -1,6 +1,7 @@
 #include "main.h"
 
 /* Main program entry point */
+
 int main(void) {
 
   /* Initialize the system */
@@ -333,7 +334,7 @@ __STATIC_INLINE char * get_battery_status(void) {
     } else {
       c = "%u.%uv";
     }
-    
+
     snprintf(buf, sizeof buf, c, v1, v2);
     
     return buf;
@@ -962,6 +963,8 @@ static void enter_sleep_mode(void) {
 
 
 static unsigned print_help;
+static uint8_t spi_rx_buf[256];
+static uint8_t spi_tx_buf[256];
 
 
 static void handle_nus_data(ble_nus_evt_t * p_evt) {
@@ -999,9 +1002,20 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
     // if (buf[0] != 0) {
     //   buf[0] = 'x';
     // }
+
     if ('a' == command) {
 
       get_adc129x_config(); 
+      p_evt->params.rx_data.length = 0;
+
+    } else if ('A' == p_evt->params.rx_data.p_data[0]) {
+
+      static uint8_t buf[ADS129X_REG_POOL_SIZE];
+
+      int slen = string_to_binary(p_evt->params.rx_data.p_data, buf);
+      ads_write_reg(buf[0], slen - 1, buf + 1);
+      //ads_start_writting_register(spi_tx_buf[0], slen - 1, spi_tx_buf + 1);
+
       p_evt->params.rx_data.length = 0;
 
     } else if (command == 's') {
@@ -2005,9 +2019,6 @@ __STATIC_INLINE void start_advertising(void) {
 static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI instance.    */
 static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
 
-static uint8_t spi_rx_buf[256];
-static uint8_t spi_tx_buf[256];
-
 static nrfx_spim_xfer_desc_t xfer = {.p_tx_buffer = (uint8_t const *)(spi_tx_buf), .p_rx_buffer = spi_rx_buf};
 
 /*
@@ -2321,7 +2332,13 @@ __STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
 
   /* Perform the SPI transfer using the nrfx_spim_xfer function */
   /* The third argument (0) is used to specify transfer options (0 for default settings) */
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  uint32_t err_code;
+
+  do {
+     
+     err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  } while(NRF_ERROR_BUSY == err_code);
 
   /* Check for errors and halt execution if an error is detected */
   APP_ERROR_CHECK(err_code);
@@ -2366,7 +2383,7 @@ __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) 
 #endif
 
 
-__STATIC_INLINE void ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data) {
+__STATIC_INLINE uint32_t ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data) {
 
   spi_tx_buf[0] = ADS129X_WREG | (reg_no & 0x1F);
   spi_tx_buf[1] = count & 0x1F;
@@ -2376,18 +2393,25 @@ __STATIC_INLINE void ads_start_writting_register(uint8_t reg_no, uint8_t count, 
   
   memcpy(2 + spi_tx_buf, data, count);
 
-  // spi_xfer_done = false;
+  uint32_t err_code;
 
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  do {
+
+    err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+
+  } while(NRF_ERROR_BUSY == err_code);
+
   APP_ERROR_CHECK(err_code);
+
+  return err_code;
 
 }
 
 __STATIC_INLINE void ads_finish_writting_register(void) { 
 
-  while (!spi_xfer_done) {
-    __WFE();
-  }
+  // while (!spi_xfer_done) {
+  //   //__WFE();
+  // }
 
 }
 
@@ -3096,6 +3120,60 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name) {
   app_error_handler(DEAD_FACE, line_num, p_file_name);
 }
 
+
+/**
+ * @brief       Converts a string to binary representation.
+ * 
+ *              The input string must start with 'A' followed by a comma-separated list of integers in decimal or hexadecimal format.
+ *              The resulting binary values are stored in the output buffer as unsigned 8-bit integers.
+ * 
+ * @param[in]   input       Pointer to the input string.
+ * @param[out]  output      Pointer to the output buffer.
+ * 
+ * @return      Number of values written to the output buffer.
+ */
+static int string_to_binary(uint8_t const *input, uint8_t *output) {
+
+  /* Check if first character is 'A' */
+  if (input[0] != 'A') {
+    /* printf("Error: First character is not 'A'\n"); */
+    return 0;
+  }
+
+  /* Skip the first character 'A' */
+  input++;
+
+  /* Split string by comma and space */
+  char* token = strtok((char*)input, ", ");
+  int result = 0;
+
+  while (token != NULL) {
+    /* Convert token to integer */
+    int value;
+    if (strncmp(token, "0x", 2) == 0) {
+      sscanf(token, "%x", &value); /* Hexadecimal format */
+    } else {
+      sscanf(token, "%d", &value); /* Decimal format */
+    }
+
+    /* Convert integer to binary and write to output buffer */
+    if (value >= 0 && value <= 255) {
+      output[result++] = (uint8_t)value;
+    }
+
+    /* Check for maximum number of values */
+    if (result > ADS129X_REG_POOL_SIZE + 1) {
+
+      break;
+
+    }
+
+    token = strtok(NULL, ", ");
+  }
+
+  /* Return number of values written to output buffer */
+  return result;
+}
 
 __STATIC_FORCEINLINE void set_acquiring_state(acquiring_state_t s) {
   extern acquiring_state_t volatile acquiring_state;

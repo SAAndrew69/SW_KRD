@@ -28,14 +28,14 @@ typedef enum {
   .CONFIG1       = ADS1298_R_CONFIG1, \
   .CONFIG3	 = ADS1298_R_CONFIG3, \
   .LOFF	         = 0x03,              \
-  .CH1SET        = GAIN_1X,          \
-  .CH2SET        = GAIN_1X,          \
-  .CH3SET        = GAIN_1X,          \
-  .CH4SET        = GAIN_1X,          \
-  .CH5SET        = GAIN_1X,          \
-  .CH6SET        = GAIN_1X,          \
-  .CH7SET        = GAIN_1X,          \
-  .CH8SET        = GAIN_1X,          \
+  .CH1SET        = GAIN_1X,           \
+  .CH2SET        = GAIN_1X,           \
+  .CH3SET        = GAIN_1X,           \
+  .CH4SET        = GAIN_1X,           \
+  .CH5SET        = GAIN_1X,           \
+  .CH6SET        = GAIN_1X,           \
+  .CH7SET        = GAIN_1X,           \
+  .CH8SET        = GAIN_1X,           \
   .LOFF_SENSP    = 0xFF,              \
   .LOFF_SENSN    = 0x02,              \
   .RESP	         = 0xF0,              \
@@ -675,6 +675,7 @@ __STATIC_FORCEINLINE void set_acquiring_mode(unsigned mode);
 __STATIC_FORCEINLINE unsigned get_acquiring_mode(void);
 
 __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data);
+__STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data);
 
 
 #ifdef __cplusplus

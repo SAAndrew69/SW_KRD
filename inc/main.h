@@ -126,6 +126,8 @@ typedef enum {
 __STATIC_INLINE void init(void);
 __STATIC_INLINE void handle_idle_state(void);
 
+static int string_to_binary(uint8_t const *input, uint8_t *output);
+
 __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t conv_type, unsigned status_word_req);
 __STATIC_INLINE void ads_start_acquiring(void);
 
