@@ -1008,6 +1008,69 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
       get_adc129x_config(); 
       p_evt->params.rx_data.length = 0;
 
+    #if 0
+    } else if (
+               ('A' == p_evt->params.rx_data.p_data[0]) &&
+               (',' == p_evt->params.rx_data.p_data[1]) &&
+               ('R' == p_evt->params.rx_data.p_data[2]) &&
+               ('E' == p_evt->params.rx_data.p_data[3]) &&
+               ('S' == p_evt->params.rx_data.p_data[4]) &&
+               ('E' == p_evt->params.rx_data.p_data[5]) &&
+               ('T' == p_evt->params.rx_data.p_data[6]) ){
+    #else
+    } else if (0 == memcmp(&p_evt->params.rx_data.p_data[0],  "A,RESET", 7)) {
+    #endif
+
+      nrf_gpio_pin_clear(ADS_RESET_PIN);
+      nrf_delay_us(100);
+      nrf_gpio_pin_set(ADS_RESET_PIN);
+      nrf_delay_us(100);
+      ads_start_sending_cmd(ADS129X_SDATAC);  /* Disable RDTAC mode */
+
+      p_evt->params.rx_data.length = 0;
+
+    } else if (0 == memcmp(&p_evt->params.rx_data.p_data[0],  "A,INIT", 6)) {
+
+      register_pool_t r = ADS1298_WORKING_CONFIG;
+
+      ads_start_writting_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
+
+      p_evt->params.rx_data.length = 0;
+
+    } else if (0 == memcmp(&p_evt->params.rx_data.p_data[0],  "A,PROFILE,", 10)) {
+
+      register_pool_t r = {0};
+
+      if ('0' == p_evt->params.rx_data.p_data[10]) {
+
+        register_pool_t r1 = ADS1298_BOOSTED_2X_CONFIG;
+        r = r1;
+
+      } else if ('1' == p_evt->params.rx_data.p_data[10]) { 
+
+        register_pool_t r1 = ADS1298_BOOSTED_4X_CONFIG;
+        r = r1;
+
+      } else if ('2' == p_evt->params.rx_data.p_data[10]) { 
+
+        register_pool_t r1 = ADS1298_BOOSTED_8X_CONFIG;
+        r = r1;
+
+      } else if ('3' == p_evt->params.rx_data.p_data[10]) { 
+
+        register_pool_t r1 = ADS1298_BOOSTED_12X_CONFIG;
+        r = r1;
+
+      }
+
+      register_pool_t k = {0};
+
+      if (memcmp(&r, &k, sizeof(k)) != 0) {
+        ads_start_writting_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
+      }
+
+      p_evt->params.rx_data.length = 0;
+
     } else if ('A' == p_evt->params.rx_data.p_data[0]) {
 
       static uint8_t buf[ADS129X_REG_POOL_SIZE];
@@ -2060,7 +2123,11 @@ __STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd) {
   xfer.tx_length = 1;
   xfer.rx_length = 1;
 
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  uint32_t err_code;
+
+  do {
+    err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  } while (NRF_ERROR_BUSY == err_code);
 
   APP_ERROR_CHECK(err_code);
 

@@ -44,6 +44,87 @@ typedef enum {
   .WCT2	         = 0xE3               \
 }
 
+#define ADS1298_BOOSTED_2X_CONFIG   { \
+  .CONFIG1       = ADS1298_R_CONFIG1, \
+  .CONFIG3	 = ADS1298_R_CONFIG3, \
+  .LOFF	         = 0x03,              \
+  .CH1SET        = GAIN_2X,           \
+  .CH2SET        = GAIN_2X,           \
+  .CH3SET        = GAIN_2X,           \
+  .CH4SET        = GAIN_2X,           \
+  .CH5SET        = GAIN_2X,           \
+  .CH6SET        = GAIN_2X,           \
+  .CH7SET        = GAIN_2X,           \
+  .CH8SET        = GAIN_2X,           \
+  .LOFF_SENSP    = 0xFF,              \
+  .LOFF_SENSN    = 0x02,              \
+  .RESP	         = 0xF0,              \
+  .CONFIG4	 = 0x22,              \
+  .WCT1	         = 0x0A,              \
+  .WCT2	         = 0xE3               \
+}
+
+#define ADS1298_BOOSTED_4X_CONFIG   { \
+  .CONFIG1       = ADS1298_R_CONFIG1, \
+  .CONFIG3	 = ADS1298_R_CONFIG3, \
+  .LOFF	         = 0x03,              \
+  .CH1SET        = GAIN_4X,           \
+  .CH2SET        = GAIN_4X,           \
+  .CH3SET        = GAIN_4X,           \
+  .CH4SET        = GAIN_4X,           \
+  .CH5SET        = GAIN_4X,           \
+  .CH6SET        = GAIN_4X,           \
+  .CH7SET        = GAIN_4X,           \
+  .CH8SET        = GAIN_4X,           \
+  .LOFF_SENSP    = 0xFF,              \
+  .LOFF_SENSN    = 0x02,              \
+  .RESP	         = 0xF0,              \
+  .CONFIG4	 = 0x22,              \
+  .WCT1	         = 0x0A,              \
+  .WCT2	         = 0xE3               \
+}
+
+#define ADS1298_BOOSTED_8X_CONFIG   { \
+  .CONFIG1       = ADS1298_R_CONFIG1, \
+  .CONFIG3	 = ADS1298_R_CONFIG3, \
+  .LOFF	         = 0x03,              \
+  .CH1SET        = GAIN_8X,           \
+  .CH2SET        = GAIN_8X,           \
+  .CH3SET        = GAIN_8X,           \
+  .CH4SET        = GAIN_8X,           \
+  .CH5SET        = GAIN_8X,           \
+  .CH6SET        = GAIN_8X,           \
+  .CH7SET        = GAIN_8X,           \
+  .CH8SET        = GAIN_8X,           \
+  .LOFF_SENSP    = 0xFF,              \
+  .LOFF_SENSN    = 0x02,              \
+  .RESP	         = 0xF0,              \
+  .CONFIG4	 = 0x22,              \
+  .WCT1	         = 0x0A,              \
+  .WCT2	         = 0xE3               \
+}
+
+#define ADS1298_BOOSTED_12X_CONFIG  { \
+  .CONFIG1       = ADS1298_R_CONFIG1, \
+  .CONFIG3	 = ADS1298_R_CONFIG3, \
+  .LOFF	         = 0x03,              \
+  .CH1SET        = GAIN_12X,          \
+  .CH2SET        = GAIN_12X,          \
+  .CH3SET        = GAIN_12X,          \
+  .CH4SET        = GAIN_12X,          \
+  .CH5SET        = GAIN_12X,          \
+  .CH6SET        = GAIN_12X,          \
+  .CH7SET        = GAIN_12X,          \
+  .CH8SET        = GAIN_12X,          \
+  .LOFF_SENSP    = 0xFF,              \
+  .LOFF_SENSN    = 0x02,              \
+  .RESP	         = 0xF0,              \
+  .CONFIG4	 = 0x22,              \
+  .WCT1	         = 0x0A,              \
+  .WCT2	         = 0xE3               \
+}
+
+
 #if !0 
   #define ADS1298_DEFAULT_CONFIG {    \
     .ID          = 0x92,              \
@@ -676,6 +757,11 @@ __STATIC_FORCEINLINE unsigned get_acquiring_mode(void);
 
 __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data);
 __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data);
+
+__STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd);
+__STATIC_INLINE void ads_send_cmd(uint8_t cmd);
+
+__STATIC_INLINE uint32_t ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data);
 
 
 #ifdef __cplusplus
