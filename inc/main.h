@@ -77,15 +77,16 @@
 
 #define SPI_INSTANCE                    0                                 /* SPI instance index.                                                                             */
 
-#define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 2)            /* SCK pin  - P0.02 */
-#define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 27)           /* MOSI pin - P0.27 */
-#define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(0, 26)           /* MISO pin - P0.26 */
-#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 15)           /* CS pin   - P1.15 */
+#define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 10)           /* SCK pin  - P0.10 */
+#define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 9)            /* MOSI pin - P0.09  */
+#define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(1, 6)            /* MISO pin - P1.06 */
+#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 4)            /* CS pin   - P1.15 */
 //#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
 
-#define ADS_START_PIN                   NRF_GPIO_PIN_MAP(1, 14)
-#define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 13)
-#define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 12)
+//#define ADS_START_PIN                   NRF_GPIO_PIN_MAP(1, 14)
+#define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 10)
+#define ADS_POWER_DOWN_PIN              NRF_GPIO_PIN_MAP(1, 11)
+#define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 00)
 
 
 #define TWI_INSTANCE_ID                 1                                 /* TWI instance ID. */
@@ -93,11 +94,11 @@
 #define NRF_TWI_SCL_PIN                 27
 #define NRF_TWI_SDA_PIN                 26
 #else
-#define NRF_TWI_SCL_PIN                 30
-#define NRF_TWI_SDA_PIN                 31
+#define NRF_TWI_SCL_PIN                 13
+#define NRF_TWI_SDA_PIN                 20
 #endif
 
-#define LED_PIN                         NRF_GPIO_PIN_MAP(0, 25)           /* LED pin - P0.25 */
+//#define LED_PIN                         NRF_GPIO_PIN_MAP(0, 25)           /* LED pin - P0.25 */
 
 #define UNIX_TIME_DELTA                 60
 

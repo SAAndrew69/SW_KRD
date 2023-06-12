@@ -507,7 +507,7 @@ __STATIC_INLINE void toggle_status_led(void) { /* process 'l' command */
     nrf_gpio_pin_clear(LED_PIN);
   #endif
 
-  nrf_gpio_pin_toggle(LED_PIN); 
+  //nrf_gpio_pin_toggle(LED_PIN); 
 }
 
 
@@ -1008,18 +1008,7 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
       get_adc129x_config(); 
       p_evt->params.rx_data.length = 0;
 
-    #if 0
-    } else if (
-               ('A' == p_evt->params.rx_data.p_data[0]) &&
-               (',' == p_evt->params.rx_data.p_data[1]) &&
-               ('R' == p_evt->params.rx_data.p_data[2]) &&
-               ('E' == p_evt->params.rx_data.p_data[3]) &&
-               ('S' == p_evt->params.rx_data.p_data[4]) &&
-               ('E' == p_evt->params.rx_data.p_data[5]) &&
-               ('T' == p_evt->params.rx_data.p_data[6]) ){
-    #else
     } else if (0 == memcmp(&p_evt->params.rx_data.p_data[0],  "A,RESET", 7)) {
-    #endif
 
       nrf_gpio_pin_clear(ADS_RESET_PIN);
       nrf_delay_us(100);
@@ -1859,8 +1848,8 @@ __STATIC_INLINE void init_uart(void) {
   app_uart_comm_params_t const comm_params = {
     .rx_pin_no    = RX_PIN_NUMBER,
     .tx_pin_no    = TX_PIN_NUMBER,
-    .rts_pin_no   = RTS_PIN_NUMBER,
-    .cts_pin_no   = CTS_PIN_NUMBER,
+    //.rts_pin_no   = RTS_PIN_NUMBER,
+    //.cts_pin_no   = CTS_PIN_NUMBER,
     .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
     .use_parity   = false,
     .baud_rate    = NRF_UART_BAUDRATE_115200
@@ -3145,7 +3134,7 @@ __STATIC_INLINE void init(void) {
   init_twi();
   test_twi();
   init_spim();
-  init_ads1298();
+  //init_ads1298();
   init_timer();
 
   #if USE_ADC
@@ -3165,7 +3154,7 @@ __STATIC_INLINE void init(void) {
   init_advertising();
   init_conn_params();
 
-  nrf_gpio_cfg_output(LED_PIN);  /* Initialize with default config of pin */
+  //nrf_gpio_cfg_output(LED_PIN);  /* Initialize with default config of pin */
 
   start_advertising();
 
