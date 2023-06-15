@@ -83,10 +83,14 @@
 #define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 4)            /* CS pin   - P1.15 */
 //#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
 
+#define VDDA_SWITCH                     NRF_GPIO_PIN_MAP(1, 9)            /* 'ANA PWR ON' pin - P1.09  */
+
 //#define ADS_START_PIN                   NRF_GPIO_PIN_MAP(1, 14)
 #define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 10)
 #define ADS_POWER_DOWN_PIN              NRF_GPIO_PIN_MAP(1, 11)
 #define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 00)
+
+#define VIBRATION_MOTOR_SWITCH          NRF_GPIO_PIN_MAP(0, 00)
 
 
 #define TWI_INSTANCE_ID                 1                                 /* TWI instance ID. */

@@ -57,9 +57,9 @@ __STATIC_INLINE void enable_vdda(void) {
 
   /* Turn ON VDDA (analog) */
 
-  #if 0
-    nrf_gpio_pin_clear(uint32_t pin_number);
-    nrf_gpio_pin_set(uint32_t pin_number);
+  #if 1
+    // nrf_gpio_pin_clear(VDDA_SWITCH);
+    nrf_gpio_pin_set(VDDA_SWITCH);
   #endif
 }
 
@@ -68,9 +68,9 @@ __STATIC_INLINE void disable_vdda(void) {
 
   /* Turn OFF VDDA (analog) */
 
-  #if 0
-    nrf_gpio_pin_clear(uint32_t pin_number);
-    nrf_gpio_pin_set(uint32_t pin_number);
+  #if 1
+    nrf_gpio_pin_clear(VDDA_SWITCH);
+    // nrf_gpio_pin_set(VDDA_SWITCH);
   #endif
 }
 
@@ -87,7 +87,7 @@ __STATIC_INLINE void enter_power_down_mode(void) {
 
     Set pins as follow:
 
-      P0.06 output 0 vibration motor
+      P0.00 output 0 vibration motor
       P0.08 output 0 VDDA
       P0.09 output 0 VDD
       P0.14 output 0 Segment of LED bar
@@ -2083,10 +2083,17 @@ static nrfx_spim_xfer_desc_t xfer = {.p_tx_buffer = (uint8_t const *)(spi_tx_buf
     }
 */
 
+#if defined(OLD_BOARD)
 #define MAX_DATA_LENGTH 244
 #define ADS_BLOCK_16_COUNT 15
 #define ADS_BLOCK_24_COUNT 10
 #define BLOCKS_TO_SEND 10000UL
+#else
+#define MAX_DATA_LENGTH 244
+#define ADS_BLOCK_16_COUNT 7      /* 240 / 16 / 2 = 7.5  */
+#define ADS_BLOCK_24_COUNT 5      /* 240 / 16 / 3 = 5    */
+#define BLOCKS_TO_SEND 10000UL
+#endif
 
 
 typedef union {
@@ -2239,7 +2246,11 @@ __STATIC_INLINE void handle_idle_state(void) {
     }
     #else
 
+    #if defined(OLD_BOARD)
     void *p = x.buf + 24 * bndx++;
+    #else
+    void *p = x.buf + 48 * bndx++;
+    #endif
 
     if (ads_finish_acquiring(p, ADS_CONVERT_24_24 /* ADS_CONVERT_24_16 */ /* ADS_CONVERT_16_16 */, bndx == ADS_BLOCK_24_COUNT)) {
       bndx = 0;
@@ -2696,7 +2707,7 @@ __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t co
         //  rev24(&spi_rx_buf[i + 1]);
         //}
 
-        memcpy(dst, &spi_rx_buf[4], 8 * 3); /* Copy the converted data to the output buffer */
+        memcpy(dst, &spi_rx_buf[4], 16 * 3); /* Copy the converted data to the output buffer */
 
         /* Extract the status word from the received data */
         uint32_t u32 = (uint32_t)  spi_rx_buf[1]       | 
@@ -2708,7 +2719,7 @@ __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t co
 
         if (status_word_req != 0) {         /* If a status word is requested, add it to the output buffer */
           u32 = status | 0xFF000000;
-          memcpy(dst + 24, &u32, sizeof(status));
+          memcpy(dst + 48, &u32, sizeof(status));
           status = 0;
         }
 
@@ -3133,6 +3144,17 @@ __STATIC_INLINE void init(void) {
   init_uart();
   init_twi();
   test_twi();
+
+  nrf_gpio_cfg_output(VDDA_SWITCH);             /* Initialize with default config of pin */
+  nrf_gpio_cfg_output(VIBRATION_MOTOR_SWITCH);  /* Initialize with default config of pin */
+
+  nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
+  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
+
+
+  nrf_gpio_pin_clear(VDDA_SWITCH);
+  nrf_gpio_pin_set(VDDA_SWITCH);
+
   init_spim();
   //init_ads1298();
   init_timer();
@@ -3157,6 +3179,10 @@ __STATIC_INLINE void init(void) {
   //nrf_gpio_cfg_output(LED_PIN);  /* Initialize with default config of pin */
 
   start_advertising();
+
+  vibrate(ON);
+  nrf_delay_us(500000);
+  vibrate(OFF);
 
   enter_wait_mode();
 
