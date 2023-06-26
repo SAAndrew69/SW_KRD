@@ -77,20 +77,19 @@
 
 #define SPI_INSTANCE                    0                                 /* SPI instance index.                                                                             */
 
-#define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 10)           /* SCK pin  - P0.10 */
-#define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 9)            /* MOSI pin - P0.09  */
-#define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(1, 6)            /* MISO pin - P1.06 */
-#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 4)            /* CS pin   - P1.15 */
+#define SPI_SCK_PIN                     NRF_GPIO_PIN_MAP(0, 10)           /* SCK pin          - P0.10 */
+#define SPI_MOSI_PIN                    NRF_GPIO_PIN_MAP(0, 9)            /* MOSI pin         - P0.09 */
+#define SPI_MISO_PIN                    NRF_GPIO_PIN_MAP(1, 6)            /* MISO pin         - P1.06 */
+#define SPI_SS_PIN                      NRF_GPIO_PIN_MAP(1, 4)            /* CS pin           - P1.04 */
 //#define SPI_SS_PIN                      NRFX_SPIM_PIN_NOT_USED
 
-#define VDDA_SWITCH                     NRF_GPIO_PIN_MAP(1, 9)            /* 'ANA PWR ON' pin - P1.09  */
-
 //#define ADS_START_PIN                   NRF_GPIO_PIN_MAP(1, 14)
-#define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 10)
-#define ADS_POWER_DOWN_PIN              NRF_GPIO_PIN_MAP(1, 11)
-#define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 00)
+#define ADS_DATA_READY_PIN              NRF_GPIO_PIN_MAP(1, 10)           /* ADC_nDRDY pin    - P1.10 */
+#define ADS_POWER_DOWN_PIN              NRF_GPIO_PIN_MAP(1, 11)           /* ADC_nPWDN pin    - P1.11 */
+#define ADS_RESET_PIN                   NRF_GPIO_PIN_MAP(1, 00)           /* ADC_nRST  pin    - P1.00 */
 
-#define VIBRATION_MOTOR_SWITCH          NRF_GPIO_PIN_MAP(0, 00)
+#define VDDA_SWITCH                     NRF_GPIO_PIN_MAP(1, 9)            /* 'ANA PWR ON' pin - P1.09 */
+#define VIBRATION_MOTOR_SWITCH          NRF_GPIO_PIN_MAP(0, 00)           /* 'MOTOR' pin      - P0.00 */
 
 
 #define TWI_INSTANCE_ID                 1                                 /* TWI instance ID. */

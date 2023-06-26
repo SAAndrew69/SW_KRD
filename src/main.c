@@ -58,8 +58,9 @@ __STATIC_INLINE void enable_vdda(void) {
   /* Turn ON VDDA (analog) */
 
   #if 1
-    // nrf_gpio_pin_clear(VDDA_SWITCH);
     nrf_gpio_pin_set(VDDA_SWITCH);
+  #else
+    nrf_gpio_pin_clear(VDDA_SWITCH);
   #endif
 }
 
@@ -70,7 +71,8 @@ __STATIC_INLINE void disable_vdda(void) {
 
   #if 1
     nrf_gpio_pin_clear(VDDA_SWITCH);
-    // nrf_gpio_pin_set(VDDA_SWITCH);
+  #else
+    nrf_gpio_pin_set(VDDA_SWITCH);
   #endif
 }
 
@@ -156,10 +158,12 @@ __STATIC_INLINE void vibrate(uint8_t state) {
     /* Log a message indicating that the vibration motor has started */
     NRF_LOG_INFO("vibration started.");
 
-    /* Clear the COMPARE[1] event and set a new compare value for CC1, 8 ticks ahead of the current time */
+    /* Clear the COMPARE[1] event and set a new compare value for CC1, 1 tick ahead of the current time */
     NRF_RTC2->EVENTS_COMPARE[1] = 0;
-    nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 1, nrf_rtc_counter_get(rtc.p_reg) + 8, true);
+    nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 1, nrf_rtc_counter_get(rtc.p_reg) + 1, true);
     APP_ERROR_CHECK(err_code);
+
+    nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
 
   } else {  /* Otherwise, stop the vibration motor */ 
 
@@ -169,6 +173,8 @@ __STATIC_INLINE void vibrate(uint8_t state) {
     /* Disable CC1 compare match events */
     nrfx_err_t err_code = nrfx_rtc_cc_disable(&rtc, 1);
     APP_ERROR_CHECK(err_code);
+
+    nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
 
   }
 }
@@ -2328,7 +2334,7 @@ __STATIC_INLINE void init_spim(void) {
         SS pin         : SPI_SS_PIN
         SS active high : false
         IRQ priority   : NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY
-        SPI frequency  : NRF_SPIM_FREQ_4M
+        SPI frequency  : NRF_SPIM_FREQ_1M
         SPI mode       : NRF_SPIM_MODE_1
         Bit order      : NRF_SPIM_BIT_ORDER_MSB_FIRST
         Output resistance calibration (ORC) value: 0xFF
@@ -2338,16 +2344,16 @@ __STATIC_INLINE void init_spim(void) {
 
   /* Initialize SPIM peripheral configuration */
   nrfx_spim_config_t spi_config = {
-    .sck_pin = SPI_SCK_PIN,
-    .mosi_pin = SPI_MOSI_PIN,
-    .miso_pin = SPI_MISO_PIN,
-    .ss_pin = SPI_SS_PIN,
+    .sck_pin        = SPI_SCK_PIN,     /* SCK pin  - P0.10,  NRF_GPIO_PIN_MAP(0, 10)  */
+    .mosi_pin       = SPI_MOSI_PIN,    /* MOSI pin - P0.09,  NRF_GPIO_PIN_MAP(0, 9)   */         
+    .miso_pin       = SPI_MISO_PIN,    /* MISO pin - P1.06,  NRF_GPIO_PIN_MAP(1, 6)   */ 
+    .ss_pin         = SPI_SS_PIN,      /* CS pin   - P1.04,  NRF_GPIO_PIN_MAP(1, 4)   */
     .ss_active_high = false,
-    .irq_priority = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
-    .orc = 0xFF,
-    .frequency = NRF_SPIM_FREQ_16M,
-    .mode = NRF_SPIM_MODE_1,
-    .bit_order = NRF_SPIM_BIT_ORDER_MSB_FIRST,
+    .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
+    .orc            = 0xFF,
+    .frequency      = NRF_SPIM_FREQ_1M,
+    .mode           = NRF_SPIM_MODE_1,
+    .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
     NRFX_SPIM_DEFAULT_EXTENDED_CONFIG /* Extended configuration */
   };
 
@@ -2816,8 +2822,10 @@ __STATIC_INLINE void init_ads1298(void) {
   register_pool_t r, reg_pool = ADS1298_WORKING_CONFIG;
   // uint8_t n = sizeof(register_pool_t);
 
-  nrf_gpio_cfg_output(ADS_RESET_PIN);
+  nrf_gpio_cfg_output(ADS_POWER_DOWN_PIN);
+  nrf_gpio_pin_set(ADS_POWER_DOWN_PIN);
 
+  nrf_gpio_cfg_output(ADS_RESET_PIN);
   nrf_gpio_pin_clear(ADS_RESET_PIN);
   nrf_delay_us(500);
   nrf_gpio_pin_set(ADS_RESET_PIN);
@@ -3134,29 +3142,72 @@ __STATIC_INLINE uint32_t measure_vdd(void) {
 __STATIC_INLINE void init(void) {
 
   /* Init all modules and sub-systems then start advertising */
-  
+
+  // Configure UICR_REGOUT0 register only if it is set to default value.
+  if ((NRF_UICR->REGOUT0 & UICR_REGOUT0_VOUT_Msk) ==
+    (UICR_REGOUT0_VOUT_DEFAULT << UICR_REGOUT0_VOUT_Pos))  {
+
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy){}
+
+    NRF_UICR->REGOUT0 = (NRF_UICR->REGOUT0 & ~((uint32_t)UICR_REGOUT0_VOUT_Msk)) |
+                        (UICR_REGOUT0_VOUT_3V3 << UICR_REGOUT0_VOUT_Pos);
+
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy){}
+
+    // System reset is needed to update UICR registers.
+    NVIC_SystemReset();
+  }
+
+  if ((NRF_UICR->NFCPINS & UICR_NFCPINS_PROTECT_Msk) == (UICR_NFCPINS_PROTECT_NFC << UICR_NFCPINS_PROTECT_Pos)){
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Wen;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy){}
+    NRF_UICR->NFCPINS &= ~UICR_NFCPINS_PROTECT_Msk;
+    NRF_NVMC->CONFIG = NVMC_CONFIG_WEN_Ren;
+    while (NRF_NVMC->READY == NVMC_READY_READY_Busy){}
+    NVIC_SystemReset();
+  }
+
   bool erase_bonds;
+
+
+  nrf_gpio_cfg_output(VDDA_SWITCH);             /* Initialize with default config of pin */
+  // nrf_gpio_cfg_output(VIBRATION_MOTOR_SWITCH);  /* Initialize with default config of pin */
+
+  // nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
+  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
+
+  // nrf_gpio_pin_clear(VDDA_SWITCH);
+  nrf_gpio_pin_set(VDDA_SWITCH);
+  // nrf_delay_us(1000000);
+  //nrf_delay_us(1000000);
+
+  // #define VIBE_PIN SPI_SCK_PIN
+  // #define VIBE_PIN SPI_MOSI_PIN
+  // #define VIBE_PIN SPI_MISO_PIN
+  #define VIBE_PIN SPI_SS_PIN
+
+  //nrf_gpio_cfg_output(VIBE_PIN);             /* Initialize with default config of pin */
+  // do {
+  // 
+  //   nrf_gpio_pin_clear(VIBE_PIN);
+  //   nrf_delay_us(20000);
+  //   nrf_gpio_pin_set(VIBE_PIN);
+  //   nrf_delay_us(20000);
+  // 
+  // }while(1);
+
 
   init_log();
 
   NRF_LOG_INFO("Device ID: %08X-%08X", NRF_FICR->DEVICEADDR[1], NRF_FICR->DEVICEADDR[0]);	
 
-  init_uart();
+  //init_uart();
   init_twi();
   test_twi();
 
-  nrf_gpio_cfg_output(VDDA_SWITCH);             /* Initialize with default config of pin */
-  nrf_gpio_cfg_output(VIBRATION_MOTOR_SWITCH);  /* Initialize with default config of pin */
-
-  nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
-  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
-
-
-  nrf_gpio_pin_clear(VDDA_SWITCH);
-  nrf_gpio_pin_set(VDDA_SWITCH);
-
   init_spim();
-  //init_ads1298();
   init_timer();
 
   #if USE_ADC
@@ -3178,13 +3229,25 @@ __STATIC_INLINE void init(void) {
 
   //nrf_gpio_cfg_output(LED_PIN);  /* Initialize with default config of pin */
 
-  start_advertising();
+  // start_advertising();
+  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
+  // nrf_delay_us(20000);
+  // nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
+ 
 
-  vibrate(ON);
-  nrf_delay_us(500000);
-  vibrate(OFF);
+  // do {
+  //   ads_start_sending_cmd(ADS129X_SDATAC);
+  // } while(0);
+
+  // vibrate(ON);
+  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
+  // nrf_delay_us(20000);
+  // nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
+  // vibrate(OFF);
 
   enter_wait_mode();
+
+  init_ads1298();
 
   NRF_LOG_INFO("Debug logging for UART over RTT started.");
 
