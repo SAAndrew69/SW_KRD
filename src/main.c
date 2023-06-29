@@ -2351,7 +2351,8 @@ __STATIC_INLINE void init_spim(void) {
     .ss_active_high = false,
     .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
     .orc            = 0xFF,
-    .frequency      = NRF_SPIM_FREQ_1M,
+    .frequency      = NRF_SPIM_FREQ_8M,
+    //.frequency      = NRF_SPIM_FREQ_125K,
     .mode           = NRF_SPIM_MODE_1,
     .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
     NRFX_SPIM_DEFAULT_EXTENDED_CONFIG /* Extended configuration */
@@ -3173,15 +3174,17 @@ __STATIC_INLINE void init(void) {
 
 
   nrf_gpio_cfg_output(VDDA_SWITCH);             /* Initialize with default config of pin */
-  // nrf_gpio_cfg_output(VIBRATION_MOTOR_SWITCH);  /* Initialize with default config of pin */
+  nrf_gpio_cfg_output(VIBRATION_MOTOR_SWITCH);  /* Initialize with default config of pin */
+  nrf_gpio_cfg_output(PWR_HOLD);
 
-  // nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
-  // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
+  nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);
+  nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
 
   // nrf_gpio_pin_clear(VDDA_SWITCH);
   nrf_gpio_pin_set(VDDA_SWITCH);
   // nrf_delay_us(1000000);
   //nrf_delay_us(1000000);
+  nrf_gpio_pin_set(PWR_HOLD);
 
   // #define VIBE_PIN SPI_SCK_PIN
   // #define VIBE_PIN SPI_MOSI_PIN
@@ -3203,7 +3206,7 @@ __STATIC_INLINE void init(void) {
 
   NRF_LOG_INFO("Device ID: %08X-%08X", NRF_FICR->DEVICEADDR[1], NRF_FICR->DEVICEADDR[0]);	
 
-  //init_uart();
+  init_uart();
   init_twi();
   test_twi();
 
@@ -3229,7 +3232,7 @@ __STATIC_INLINE void init(void) {
 
   //nrf_gpio_cfg_output(LED_PIN);  /* Initialize with default config of pin */
 
-  // start_advertising();
+  start_advertising();
   // nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
   // nrf_delay_us(20000);
   // nrf_gpio_pin_clear(VIBRATION_MOTOR_SWITCH);

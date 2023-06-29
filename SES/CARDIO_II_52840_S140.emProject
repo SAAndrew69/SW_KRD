@@ -58,6 +58,7 @@
       arm_assembler_variant="gcc"
       arm_compiler_variant="gcc"
       arm_keep_assembly="Yes"
+      arm_linker_stack_size="2048"
       arm_linker_variant="GNU"
       c_preprocessor_definitions="DEBUG"
       gcc_c_language_standard="c11"
