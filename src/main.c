@@ -2274,7 +2274,13 @@ __STATIC_INLINE void handle_idle_state(void) {
 
   } else {
     if (NRF_LOG_PROCESS() == false) {
-      nrf_pwr_mgmt_run();
+      static uint32_t send_counter;
+      if (++send_counter == 1000) {
+        ads_start_sending_cmd(ADS129X_SDATAC);
+        send_counter = 0;
+      }
+      //nrf_pwr_mgmt_run();
+
     }
   }
 }
