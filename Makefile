@@ -2,14 +2,18 @@ PROJECT_NAME     := CARDIO_II_52840
 TARGETS          := nrf52840_xxaa
 OUTPUT_DIRECTORY := _build
 
+DEBUG := 1
+
 SDK_ROOT := nRF5_SDK_17.1.0_ddde560
 PROJ_DIR := .
 
 $(OUTPUT_DIRECTORY)/nrf52840_xxaa.out: \
   #LINKER_SCRIPT := ./nrf52840_xxaa.ld
   #LINKER_SCRIPT := $(SDK_ROOT)/modules/nrfx/mdk/nrf52840_xxaa.ld
-  #LINKER_SCRIPT  := ./nrf52_gcc.ld
-  LINKER_SCRIPT  := ./CARDIO_II_52840_S140.ld
+  LINKER_SCRIPT  := ./nrf52_gcc.ld
+  # LINKER_SCRIPT  := ./gcc_nrf52.ld
+  # LINKER_SCRIPT  := ./CARDIO_II_52840_S140.ld
+  # LINKER_SCRIPT  := ./ble_app_uart_gcc_nrf52.ld
 
 # Source files common to all targets
 SRC_FILES += \
@@ -62,9 +66,9 @@ SRC_FILES += \
   $(SDK_ROOT)/components/libraries/bsp/bsp.c \
   $(SDK_ROOT)/components/libraries/bsp/bsp_btn_ble.c \
   $(PROJ_DIR)/src/main.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
-  $(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
+  #$(SDK_ROOT)/external/segger_rtt/SEGGER_RTT.c \
+  #$(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c \
+  #$(SDK_ROOT)/external/segger_rtt/SEGGER_RTT_printf.c \
   $(SDK_ROOT)/components/ble/common/ble_advdata.c \
   $(SDK_ROOT)/components/ble/ble_advertising/ble_advertising.c \
   $(SDK_ROOT)/components/ble/common/ble_conn_params.c \
@@ -228,6 +232,7 @@ endif
 # Uncomment the line below to enable link time optimization
 #OPT += -flto
 
+
 # C flags common to all targets
 CFLAGS += $(OPT)
 CFLAGS += -DAPP_TIMER_V2
@@ -235,6 +240,8 @@ CFLAGS += -DAPP_TIMER_V2_RTC1_ENABLED
 CFLAGS += -DBOARD_PCA10056
 CFLAGS += -DCONFIG_GPIO_AS_PINRESET
 CFLAGS += -DFLOAT_ABI_HARD
+CFLAGS += -DINITIALIZE_USER_SECTIONS
+CFLAGS += -DNO_VTOR_CONFIG
 CFLAGS += -DNRF52840_XXAA
 CFLAGS += -DNRF_SD_BLE_API_VERSION=7
 CFLAGS += -DS140

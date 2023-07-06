@@ -5,7 +5,7 @@
  extern "C" {
 #endif
 
-// #include "sdk_config.h"
+#include "sdk_config.h"
 
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"

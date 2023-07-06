@@ -89,6 +89,8 @@ __STATIC_INLINE void enter_power_down_mode(void) {
 
     Set pins as follow:
 
+      !!! OBSOLETE !!!
+
       P0.00 output 0 vibration motor
       P0.08 output 0 VDDA
       P0.09 output 0 VDD
@@ -121,56 +123,38 @@ __STATIC_INLINE void enter_power_down_mode(void) {
 
 const nrf_drv_rtc_t rtc = NRF_DRV_RTC_INSTANCE(2); /* The instance of nrf_drv_rtc for RTC2. */
 
-#if 0
-__STATIC_INLINE void vibrate(uint8_t state) {
 
-  /* Start/Stop vibration motor */
+/**
+ * @brief This function starts or stops the vibration motor based on the value passed in the state parameter.
+ *
+ * @param state The state parameter indicating whether to start or stop the vibration motor.
+ */
+__STATIC_INLINE void vibrate(uint8_t state) {
 
   if (state != 0) {
+    /**
+     * @brief If state is not zero, start the vibration motor.
+     */
 
+    // Log a message indicating that the vibration motor has started
     NRF_LOG_INFO("vibration started.");
 
-    NRF_RTC2->EVENTS_COMPARE[1] = 0;
-    nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 1, nrf_rtc_counter_get(rtc.p_reg) + 8, true);
-    APP_ERROR_CHECK(err_code);
-
-  } else {
-
-    NRF_LOG_INFO("vibration stopped.");
-
-    nrfx_err_t err_code = nrfx_rtc_cc_disable(&rtc, 1);
-    APP_ERROR_CHECK(err_code);
-
-  }
-}
-#else
-__STATIC_INLINE void vibrate(uint8_t state) {
-
-  /*
-  
-    This function starts or stops the vibration motor 
-    based on the value passed in the state parameter.
-
-  */
-
-  if (state != 0) { /* If state is not zero, start the vibration motor */
-
-    /* Log a message indicating that the vibration motor has started */
-    NRF_LOG_INFO("vibration started.");
-
-    /* Clear the COMPARE[1] event and set a new compare value for CC1, 1 tick ahead of the current time */
+    // Clear the COMPARE[1] event and set a new compare value for CC1, 1 tick ahead of the current time
     NRF_RTC2->EVENTS_COMPARE[1] = 0;
     nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 1, nrf_rtc_counter_get(rtc.p_reg) + 1, true);
     APP_ERROR_CHECK(err_code);
 
     nrf_gpio_pin_set(VIBRATION_MOTOR_SWITCH);
 
-  } else {  /* Otherwise, stop the vibration motor */ 
+  } else {
+    /**
+     * @brief Otherwise, stop the vibration motor.
+     */
 
-    /* Log a message indicating that the vibration motor has stopped */
+    // Log a message indicating that the vibration motor has stopped
     NRF_LOG_INFO("vibration stopped.");
 
-    /* Disable CC1 compare match events */
+    // Disable CC1 compare match events
     nrfx_err_t err_code = nrfx_rtc_cc_disable(&rtc, 1);
     APP_ERROR_CHECK(err_code);
 
@@ -178,93 +162,77 @@ __STATIC_INLINE void vibrate(uint8_t state) {
 
   }
 }
-#endif
 
 
+/**
+ * @brief Enters the wait mode by waiting for incoming commands.
+ */
 __STATIC_INLINE void enter_wait_mode(void) {
 
-  /* Wait for incoming commands  */
+    // Wait for incoming commands
 
-  vibrate(ON);
-  enable_vdd();
-  enable_vdda();
+    vibrate(ON);
+    enable_vdd();
+    enable_vdda();
 
-  NRF_LOG_INFO("WAIT mode entered.");
+    // Log a message indicating that WAIT mode has been entered
+    NRF_LOG_INFO("WAIT mode entered.");
 }
 
 
 static unsigned unix_time;                         /* POSIX time                            */
 
 
-#if 0
+/**
+ * @brief Event handler for RTC module events.
+ *
+ * This function is called by the RTC driver when a specified event occurs.
+ *
+ * @param int_type The type of RTC interrupt that occurred.
+ */
 static void handle_rtc_event(nrf_drv_rtc_int_type_t int_type) {
 
-  /* Process the RTC module event */
-
+  // Check if the event type is a compare match with CC0
   if (int_type == NRF_DRV_RTC_INT_COMPARE0) {
-    
+
+    // Increment the Unix time counter
     unix_time++;
 
+    // Set a new compare value for CC0, 8 ticks ahead of the current time
     nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 0, rtc.p_reg->CC[0] + 8, true);
     APP_ERROR_CHECK(err_code);
 
   }
 
+  // Check if the event type is a compare match with CC1
   if (int_type == NRF_DRV_RTC_INT_COMPARE1) {
-
-    vibrate(OFF);
-
+    vibrate(OFF); // Turn off the vibration motor
   }
 }
-#else
-static void handle_rtc_event(nrf_drv_rtc_int_type_t int_type) {
-
-  /*
-  
-    This function is an event handler for RTC module events.
-    It is called by the RTC driver when a specified event occurs.
-  
-  */
-
-  /* Check if the event type is a compare match with CC0 */
-  if (int_type == NRF_DRV_RTC_INT_COMPARE0) {
-    
-    /* Increment the Unix time counter */
-    unix_time++;
-
-    /* Set a new compare value for CC0, 8 ticks ahead of the current time */
-    nrfx_err_t err_code = nrfx_rtc_cc_set(&rtc, 0, rtc.p_reg->CC[0] + 8, true);
-    APP_ERROR_CHECK(err_code);
-
-  }
-
-  /* Check if the event type is a compare match with CC1 */
-  if (int_type == NRF_DRV_RTC_INT_COMPARE1) {
-    vibrate(OFF); /* Turn off the vibration motor */
-  }
-}
-#endif
 
 
+/**
+ * @brief Initializes and configures the RTC driver instance.
+ */
 __STATIC_INLINE void init_rtc(void) {
 
-  /* Initialize and configure RTC driver instance */
+    // Initialize and configure RTC driver instance
 
-  uint32_t err_code;
+    uint32_t err_code;
 
-  /* Initialize RTC instance */
-  nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
-  config.prescaler = UINT16_MAX / 16; /* 4095 */
-  
-  err_code = nrf_drv_rtc_init(&rtc, &config, handle_rtc_event);
-  APP_ERROR_CHECK(err_code);
+    // Initialize RTC instance
+    nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
+    config.prescaler = UINT16_MAX / 16; // 4095
 
-  /* Set compare channel to trigger interrupt after every second */
-  err_code = nrf_drv_rtc_cc_set(&rtc, 0, 8, true);
-  APP_ERROR_CHECK(err_code);
+    err_code = nrf_drv_rtc_init(&rtc, &config, handle_rtc_event);
+    APP_ERROR_CHECK(err_code);
 
-  /* Power on RTC instance */
-  nrf_drv_rtc_enable(&rtc);
+    // Set compare channel to trigger interrupt after every second
+    err_code = nrf_drv_rtc_cc_set(&rtc, 0, 8, true);
+    APP_ERROR_CHECK(err_code);
+
+    // Power on RTC instance
+    nrf_drv_rtc_enable(&rtc);
 }
 
 
@@ -272,40 +240,68 @@ BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);        /* BLE NUS service inst
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID; /* Handle of the current connection.      */
 
 
-uint32_t ble_output(uint8_t * s, uint16_t len) {
+/**
+ * @brief Sends data over BLE NUS (Nordic UART Service).
+ *
+ * @param s Pointer to the data buffer.
+ * @param len Length of the data to be sent.
+ *
+ * @return Error code indicating the status of the operation.
+ */
+uint32_t ble_output(uint8_t *s, uint16_t len) {
 
-  /* Send data over BLE NUS */
+    unsigned err_code;
 
-  unsigned err_code;
+    do {
+        /**
+         * @brief Continue sending data until no more resources are available.
+         */
 
-  do { /* Continue sending data until no more resources are available */
+        uint16_t length = len;
 
-    uint16_t length = len;
+        // Send data using the BLE NUS service instance and the current connection handle
+        err_code = ble_nus_data_send(&m_nus, s, &length, m_conn_handle);
 
-    /* Send data using the BLE NUS service instance and the current connection handle */
-    err_code = ble_nus_data_send(&m_nus, s, &length, m_conn_handle);
+        // Check for errors that can't be safely ignored
+        if ((err_code != NRF_ERROR_INVALID_STATE) &&
+            (err_code != NRF_ERROR_RESOURCES) &&
+            (err_code != NRF_ERROR_NOT_FOUND)) {
 
-    /* Check for errors that can't be safely ignored */
-    if ((err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != NRF_ERROR_RESOURCES)     &&
-        (err_code != NRF_ERROR_NOT_FOUND)) {
+            // Report it as an application error
+            APP_ERROR_CHECK(err_code);
+        }
+    } while (err_code == NRF_ERROR_RESOURCES);
 
-      /* report it as an application error */
-      APP_ERROR_CHECK(err_code);
-    }
-  } while (err_code == NRF_ERROR_RESOURCES);
-
-  return err_code;
+    return err_code;
 }
 
+
+/**
+ * @brief Sends test data over BLE NUS (Nordic UART Service).
+ *
+ * This function sends the test data using the BLE NUS service instance and the current connection handle.
+ * It continues sending data until no more resources are available.
+ *
+ * @param s Pointer to the test data buffer.
+ *
+ * @return Error code indicating the status of the operation.
+ */
 static uint32_t ble_test_output(uint8_t *s) {
-  uint16_t length = 216;
-  uint32_t err_code;
-  do {
-    err_code = ble_nus_data_send(&m_nus, s, &length, m_conn_handle);
-  } while(err_code == NRF_ERROR_RESOURCES);
-  return err_code;
+    uint16_t length = 216;
+    uint32_t err_code;
+
+    do {
+        /**
+         * @brief Continue sending data until no more resources are available.
+         */
+
+        err_code = ble_nus_data_send(&m_nus, s, &length, m_conn_handle);
+
+    } while(err_code == NRF_ERROR_RESOURCES);
+
+    return err_code;
 }
+
 
 static uint32_t test_req;
 
@@ -322,6 +318,11 @@ void ble_test_throughoutput(void) {
 #endif
 
 
+/**
+ * @brief Retrieves the battery status as a string.
+ *
+ * @return A pointer to a character array containing the battery status.
+ */
 __STATIC_INLINE char * get_battery_status(void) {
 
   #if USE_ADC != 0
@@ -352,82 +353,84 @@ __STATIC_INLINE char * get_battery_status(void) {
   #endif
 }
 
-#if 0
-__STATIC_INLINE uint16_t rssi(void) {
 
-  /* Measure the power present in a received radio signal. */
-
-  if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
-    int8_t rssi;
-    uint8_t channel;
-  
-    uint32_t err_code = sd_ble_gap_rssi_get(m_conn_handle, &rssi, &channel);
-    APP_ERROR_CHECK(err_code);
-
-    uint16_t res = channel << 8;
-    res = res | (uint8_t)rssi;
-
-    return res;
-
-  } else {
-
-    return 0;
-
-  }
-}
-#else
+/**
+ * @brief Measures the power present in a received radio signal (RSSI).
+ *
+ * This function measures the power present in a received radio signal. It returns
+ * a 16-bit value, with the most significant byte being the channel number and the
+ * least significant byte being the RSSI value.
+ *
+ * @return A 16-bit value representing the combined channel and RSSI values.
+ *         If there is no connection handle, it returns 0.
+ */
 __STATIC_INLINE uint16_t rssi(void) {
 
   /*
-    
-    This function measures the power present in a received radio signal.
-    It returns a 16-bit value, with the most significant byte being the 
-    channel number and the least significant byte being the RSSI value.
-
+    Check if a connection handle has been established
   */
-
-  /* Check if a connection handle has been established */
   if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
 
-    /* Declare variables for RSSI and channel */
+    /*
+      Declare variables for RSSI and channel
+    */
     int8_t rssi;
     uint8_t channel;
   
-    /* Call the SoftDevice API to get the RSSI and channel of the connected device */
+    /*
+      Call the SoftDevice API to get the RSSI and channel of the connected device
+    */
     uint32_t err_code = sd_ble_gap_rssi_get(m_conn_handle, &rssi, &channel);
     APP_ERROR_CHECK(err_code);
 
     /*
-      Combine the channel and RSSI values into a 16-bit value, with the channel 
-      in the most significant byte and the RSSI in the least significant byte
+      Combine the channel and RSSI values into a 16-bit value,
+      with the channel in the most significant byte and the RSSI in the least significant byte
     */
     uint16_t res = channel << 8;
-    res = res | (uint8_t)rssi;
+    res |= (uint8_t)rssi;
 
     return res;
 
-  } else { /* If there is no connection handle, return 0 */
+  } else {
+    /*
+      If there is no connection handle, return 0
+    */
     return 0;
   }
 }
-#endif
 
 
-__STATIC_INLINE void get_info(void) {          /* process 's' command */
+/**
+ * @brief Processes the 's' command and retrieves information.
+ *
+ * This function processes the 's' command by retrieving firmware version, serial number,
+ * battery voltage, and RSSI. It formats the information into a string and sends it as output.
+ */
+__STATIC_INLINE void get_info(void) {
 
-  /* Get firmware version, s/n, battery voltage and RSSI */
-
-  NRF_LOG_INFO("'s' command: info requested.");
-
+  /**
+   * @brief Buffer to store the formatted information.
+   */
   uint8_t buf[120];
+
+  /**
+   * @brief Retrieve RSSI value and channel.
+   */
   uint16_t d = rssi();
   int8_t r = (int8_t)(d & 0xFF);
   uint8_t ch = d >> 8;
 
-  int len = snprintf((char*) buf, sizeof(buf), "FIRMWARE: %s\nSerialNO: "DEVICE_SERIAL_NO"\nBattery: %s\nRSSI: %ddBm, Ch: %u\n", 
-                     DEVICE_FIRMWARE_VERSION, NRF_FICR->DEVICEADDR[1], NRF_FICR->DEVICEADDR[0], 
+  /**
+   * @brief Format the information into a string.
+   */
+  int len = snprintf((char*)buf, sizeof(buf), "FIRMWARE: %s\nSerialNO: "DEVICE_SERIAL_NO"\nBattery: %s\nRSSI: %ddBm, Ch: %u\n",
+                     DEVICE_FIRMWARE_VERSION, NRF_FICR->DEVICEADDR[1], NRF_FICR->DEVICEADDR[0],
                      get_battery_status(), r, ch);
-  
+
+  /**
+   * @brief Send the formatted information as output.
+   */
   ble_output(buf, len);
 }
 
@@ -435,30 +438,82 @@ __STATIC_INLINE void get_info(void) {          /* process 's' command */
 static unsigned acquiring_status;
 
 
-__STATIC_INLINE void start_acquiring(void) {   /* process 'b' command */
-  
-  NRF_LOG_INFO("'b' command: acquiring started.");
+/**
+ * @brief Starts the process of acquiring.
+ *
+ * This function processes the 'b' command by starting the acquisition process.
+ * It updates the acquiring status and resets the transmission count.
+ */
+__STATIC_INLINE void start_acquiring(void) {
 
+  /**
+   * @brief Update the acquiring status.
+   */
+  acquiring_status = !0;
+
+  /**
+   * @brief Reset the transmission count.
+   */
+  tr_count = 0;
+
+  /**
+   * @brief Wait for the NRF_LOG_PROCESS() function to return false.
+   *
+   * This loop ensures that any pending log messages are processed before continuing.
+   */
   while (NRF_LOG_PROCESS() != false) {
     __NOP();
   }
-  acquiring_status = !0;
-  tr_count = 0;
+
+  /**
+   * @brief Log an informational message indicating that acquiring has started.
+   */
+  NRF_LOG_INFO("'b' command: acquiring started.");
 }
 
 
-__STATIC_INLINE void stop_acquiring(void) {    /* process 'e' command */
+/**
+ * @brief Stops the process of acquiring.
+ *
+ * This function processes the 'e' command by stopping the acquisition process.
+ * It updates the acquiring status, sets the acquiring state to inactive, and logs
+ * an informational message indicating the completion of transmission.
+ */
+__STATIC_INLINE void stop_acquiring(void) {
 
+  /**
+   * @brief Log an informational message indicating that acquiring has stopped.
+   */
   NRF_LOG_INFO("'e' command: acquiring stopped.");
-  acquiring_status = 0;
-  set_acquiring_state(ACQUIRING_INACTIVE);
-  NRF_LOG_INFO("Transmission completed. %u blocks sent.", tr_count);
 
+  /**
+   * @brief Update the acquiring status.
+   */
+  acquiring_status = 0;
+
+  /**
+   * @brief Set the acquiring state to inactive.
+   */
+  set_acquiring_state(ACQUIRING_INACTIVE);
+
+  /**
+   * @brief Log an informational message indicating the completion of transmission.
+   */
+  NRF_LOG_INFO("Transmission completed. %u blocks sent.", tr_count);
 }
 
 
-__STATIC_INLINE void help(void) {        /* process 'h' command */
+/**
+ * @brief Provides a summary of available commands.
+ *
+ * This function processes the 'h' command by providing a summary of available commands
+ * and their descriptions. It sends the help information as output using the BLE interface.
+ */
+__STATIC_INLINE void help(void) {
 
+  /**
+   * @brief Help information for commands (part 1).
+   */
   char *h1 =
     "Command summary:\n"
     "\n"
@@ -470,19 +525,31 @@ __STATIC_INLINE void help(void) {        /* process 'h' command */
     "e - stop acquiring data\n"
     "f - toggle indication\n";
 
+  /**
+   * @brief Send part 1 of the help information as output.
+   */
   ble_output((uint8_t*)h1, strlen(h1));
 
+  /**
+   * @brief Help information for commands (part 2).
+   */
   char *h2 =
     "g - get Gas Gauge info\n"
     "h - print this help\n"
-    "i - get receiption level (RSSI)\n"
+    "i - get reception level (RSSI)\n"
     "l - toggle led\n"
     "m - get correction factor\n"
     "M - set correction factor\n"
     "o - switch the device off\n";
 
+  /**
+   * @brief Send part 2 of the help information as output.
+   */
   ble_output((uint8_t*)h2, strlen(h2));
 
+  /**
+   * @brief Help information for commands (part 3).
+   */
   char *h3 =
     "p - get current power consumption\n"
     "r - read offset register\n"
@@ -491,8 +558,14 @@ __STATIC_INLINE void help(void) {        /* process 'h' command */
     "t - get current date/time\n"
     "v - run vibration motor\n";
 
+  /**
+   * @brief Send part 3 of the help information as output.
+   */
   ble_output((uint8_t*)h3, strlen(h3));
 
+  /**
+   * @brief Help information for commands (part 4).
+   */
   char *h4 =
     "y - get calibration data\n"
     "z - set calibration data\n"
@@ -500,15 +573,28 @@ __STATIC_INLINE void help(void) {        /* process 'h' command */
     "to set up date/time just send string in the following format:\n"
     "dd.mm.yyyy hh:mm:ss\n";
 
+  /**
+   * @brief Send part 4 of the help information as output.
+   */
   ble_output((uint8_t*)h4, strlen(h4));
-
 }
 
-__STATIC_INLINE void toggle_status_led(void) { /* process 'l' command */
-  
+
+/**
+ * @brief Toggles the status LED.
+ *
+ * This function processes the 'l' command by toggling the status LED.
+ * It logs an informational message indicating the LED toggle.
+ */
+__STATIC_INLINE void toggle_status_led(void) {
+
+  /**
+   * @brief Log an informational message indicating that the LED has been toggled.
+   */
   NRF_LOG_INFO("'l' command: LED toggled.");
 
   #if 0
+    // Code to set and clear LED pin (commented out for now)
     nrf_gpio_pin_set(LED_PIN);
     nrf_gpio_pin_clear(LED_PIN);
   #endif
@@ -517,10 +603,18 @@ __STATIC_INLINE void toggle_status_led(void) { /* process 'l' command */
 }
 
 
-__STATIC_INLINE void single_sample(void) {     /* process 'c' command */
+/**
+ * @brief Acquires a single sample from the ADC.
+ *
+ * This function processes the 'c' command by acquiring a single sample from the ADC.
+ * It logs an informational message indicating the acquisition of a single sample.
+ * If the acquiring status is inactive, it sends the acquired data as output using the BLE interface.
+ */
+__STATIC_INLINE void single_sample(void) {
 
-  /* Acquire single sample from ADC */
-
+  /**
+   * @brief Log an informational message indicating that a single sample has been acquired.
+   */
   NRF_LOG_INFO("'c' command: single sample acquired.");
 
   if (acquiring_status == 0) {
@@ -531,64 +625,131 @@ __STATIC_INLINE void single_sample(void) {     /* process 'c' command */
 }
 
 
-__STATIC_INLINE void shift_time(void) {     /* process 'd' command */
+/**
+ * @brief Shifts the time by one step.
+ *
+ * This function processes the 'd' command by shifting the time by one step (UNIX_TIME_DELTA).
+ * It logs an informational message indicating the time shift.
+ */
+__STATIC_INLINE void shift_time(void) {
 
-  /* Shift the time by one step */
-
+  /**
+   * @brief Log an informational message indicating that the time has been shifted.
+   */
   NRF_LOG_INFO("'d' command: the time shifted.");
 
-  unix_time += UNIX_TIME_DELTA;  
+  unix_time += UNIX_TIME_DELTA;
 }
 
 
+/**
+ * @brief Measures the power consumption.
+ *
+ * This function processes the 'p' command by measuring the power consumption.
+ * It logs an informational message indicating the power consumption measurement.
+ * Note: The implementation of measuring power consumption is yet to be implemented.
+ */
 __STATIC_INLINE void get_power_consumption(void) {
 
+  /**
+   * @brief Log an informational message indicating that the power consumption has been measured.
+   */
   NRF_LOG_INFO("'p' command: power consumption measured.");
 
   /* to be implemented soon */
-
 }
 
 
+/**
+ * @brief Reads the gas gauge information.
+ *
+ * This function processes the 'g' command by reading the gas gauge information.
+ * It logs an informational message indicating the gas gauge read.
+ * Note: The implementation of reading the gas gauge information is yet to be implemented.
+ */
 __STATIC_INLINE void read_gas_gauge(void) {
 
+  /**
+   * @brief Log an informational message indicating that the gas gauge has been read.
+   */
   NRF_LOG_INFO("'g' command: gas gauge read.");
 
   /* to be implemented soon */
-
 }
 
 
+/**
+ * @brief Displays the status.
+ *
+ * This function processes the 'f' command by displaying the status.
+ * It logs an informational message indicating the display of the status.
+ */
 __STATIC_INLINE void show_status(void) {
 
+  /**
+   * @brief Log an informational message indicating that the status has been displayed.
+   */
   NRF_LOG_INFO("'f' command: status displayed.");
 }
 
 
-__STATIC_INLINE void get_calibration_data(const uint8_t * t, unsigned len) {
+/**
+ * @brief Gets the calibration data.
+ *
+ * This function processes the 'y' command by getting the calibration data.
+ * It logs an informational message indicating the retrieval of calibration data.
+ * Note: The implementation of retrieving calibration data is yet to be implemented.
+ *
+ * @param t Pointer to the calibration data.
+ * @param len Length of the calibration data.
+ */
+__STATIC_INLINE void get_calibration_data(const uint8_t *t, unsigned len) {
 
+  /**
+   * @brief Log an informational message indicating that the calibration data has been retrieved.
+   */
   NRF_LOG_INFO("'y' command: calibration data got.");
 
   /* to be implemented soon */
-
 }
 
-__STATIC_INLINE void set_calibration_data(const uint8_t * t, unsigned len) {
 
+/**
+ * @brief Sets the calibration data.
+ *
+ * This function processes the 'z' command by setting the calibration data.
+ * It logs an informational message indicating the setting of calibration data.
+ * Note: The implementation of setting calibration data is yet to be implemented.
+ *
+ * @param t Pointer to the calibration data.
+ * @param len Length of the calibration data.
+ */
+__STATIC_INLINE void set_calibration_data(const uint8_t *t, unsigned len) {
+
+  /**
+   * @brief Log an informational message indicating that the calibration data has been set.
+   */
   NRF_LOG_INFO("'z' command: calibration data set.");
 
   /* to be implemented soon */
-
 }
 
 
 static volatile short offset_register;
 
 
+/**
+ * @brief Reads the offset register.
+ *
+ * This function processes the 'r' command by reading the offset register.
+ * It logs an informational message indicating the offset register read.
+ * It then sends the offset value as output using the BLE interface.
+ */
 __STATIC_INLINE void read_offset_register(void) {
 
-  /* Read offset register */
-
+  /**
+   * @brief Log an informational message indicating that the offset register has been read.
+   */
   NRF_LOG_INFO("'r' command: offset register read.");
 
   char buf[80];
@@ -597,10 +758,22 @@ __STATIC_INLINE void read_offset_register(void) {
 }
 
 
-__STATIC_INLINE void write_offset_register(const uint8_t * t, unsigned len) {
+/**
+ * @brief Writes to the offset register.
+ *
+ * This function processes the 'R' command by writing to the offset register.
+ * It logs an informational message indicating the offset register write.
+ * The provided data is copied into a buffer and parsed to extract the offset value.
+ * If parsing is successful, the offset value is stored in the offset register.
+ *
+ * @param t Pointer to the data containing the offset value.
+ * @param len Length of the data.
+ */
+__STATIC_INLINE void write_offset_register(const uint8_t *t, unsigned len) {
 
-  /* Write offset register */
-
+  /**
+   * @brief Log an informational message indicating that the offset register has been written.
+   */
   NRF_LOG_INFO("'R' command: offset register written.");
 
   char buf[80], c;
@@ -618,10 +791,18 @@ __STATIC_INLINE void write_offset_register(const uint8_t * t, unsigned len) {
 static volatile int factor_register;
 
 
+/**
+ * @brief Reads the factor register.
+ *
+ * This function processes the 'm' command by reading the factor register.
+ * It logs an informational message indicating the factor register read.
+ * It then sends the factor value as output using the BLE interface.
+ */
 __STATIC_INLINE void read_factor_register(void) {
 
-  /* Read factor register */
-
+  /**
+   * @brief Log an informational message indicating that the factor register has been read.
+   */
   NRF_LOG_INFO("'m' command: factor register read.");
 
   char buf[80];
@@ -630,10 +811,22 @@ __STATIC_INLINE void read_factor_register(void) {
 }
 
 
-__STATIC_INLINE void write_factor_register(const uint8_t * t, unsigned len) {
+/**
+ * @brief Writes to the factor register.
+ *
+ * This function processes the 'M' command by writing to the factor register.
+ * It logs an informational message indicating the factor register write.
+ * The provided data is copied into a buffer and parsed to extract the factor value.
+ * If parsing is successful, the factor value is stored in the factor register.
+ *
+ * @param t Pointer to the data containing the factor value.
+ * @param len Length of the data.
+ */
+__STATIC_INLINE void write_factor_register(const uint8_t *t, unsigned len) {
 
-  /* Write factor register */
-
+  /**
+   * @brief Log an informational message indicating that the factor register has been written.
+   */
   NRF_LOG_INFO("'M' command: factor register written.");
 
   char buf[80], c;
@@ -647,30 +840,20 @@ __STATIC_INLINE void write_factor_register(const uint8_t * t, unsigned len) {
   }
 }
 
+
 /**
- * @brief Function to get the RSSI and channel information from the radio.
+ * @brief Gets the RSSI and channel information from the radio.
  *
- * @param None.
- * 
- * @return None.
+ * This function retrieves the RSSI (Received Signal Strength Indication) and channel information 
+ * from the radio. It logs an informational message indicating that the 'i' command for RSSI has been processed.
+ * The RSSI value and channel information are obtained using the rssi() function.
+ * The results are formatted into a string and sent to the ble_output() function for output over Bluetooth Low Energy.
  */
-#if 0
 __STATIC_INLINE void get_rssi(void) {
 
-  NRF_LOG_INFO("'i' command: rssi processed.");
-
-  char buf[80];
-  uint16_t d = rssi();
-  int8_t r = (int8_t) d & 0xFF;
-  uint8_t ch = d >> 8;
-
-  unsigned len = snprintf(buf, sizeof(buf), "RSSI: %ddBm, Ch: %u\n", r, ch);
-  ble_output((uint8_t *)&buf, len);
-}
-#else
-__STATIC_INLINE void get_rssi(void) {
-
-  /* Print to the log that the 'i' command for RSSI has been processed */
+  /**
+   * @brief Log an informational message indicating that the 'i' command for RSSI has been processed.
+   */
   NRF_LOG_INFO("'i' command: rssi processed.");
 
   /* Create a buffer to use it in snprintf function */
@@ -680,7 +863,7 @@ __STATIC_INLINE void get_rssi(void) {
   uint16_t d = rssi();
 
   /* Extract the RSSI value from the returned data and convert it to an 8-bit integer */
-  int8_t r = (int8_t) d & 0xFF;
+  int8_t r = (int8_t)d & 0xFF;
 
   /* Extract the channel information from the returned data */
   uint8_t ch = d >> 8;
@@ -691,47 +874,29 @@ __STATIC_INLINE void get_rssi(void) {
   /* Send the formatted string to the ble_output function to be output over Bluetooth Low Energy */
   ble_output((uint8_t *)&buf, len);
 }
-#endif
+
 
 static uint32_t reg_dump_req;
 
 
+/**
+ * @brief Gets the ADC129x configuration.
+ *
+ * This function processes the 'a' command by initiating a register pool read.
+ * It logs an informational message indicating the register pool read.
+ * The reg_dump_req flag is set to initiate the read operation.
+ */
 __STATIC_INLINE void get_adc129x_config(void) {
 
-  /* Read offset register */
-
+  /**
+   * @brief Log an informational message indicating that the register pool has been read.
+   */
   NRF_LOG_INFO("'a' command: register pool read.");
 
   reg_dump_req = !0;
-
-  // char buf[] = {
-  //   0x92, 0x86, 0x00, 0xDC, 0x0A,
-  //   0x03, 0x00, 0x00, 0x00, 0x0A,
-  //   0x00, 0x00, 0x00, 0x00, 0x0A,
-  //   0x00, 0x00, 0x00, 0xFF, 0x0A,
-  //   0x02, 0x00, 0x00, 0x00, 0x0A,
-  //   0x00, 0x00, 0xF0, 0x22, 0x0A,
-  //   0x0A, 0xE3, 0x0A
-  // };
-  // //unsigned len = snprintf(buf, sizeof(buf), "Offset: %d\n", offset_register);
-  // ble_output((uint8_t *)&buf, sizeof(buf));  
-
 }
 
-#if 0
-__STATIC_INLINE void get_current_time(void) { /* process 't' command */
 
-  NRF_LOG_INFO("'t' command: current time sent.");
-
-  time_struct_t t;
-
-  unixtime_to_time(unix_time, &t);
-
-  char buf[80];
-  unsigned len = snprintf(buf, sizeof(buf), "%02u.%02u.%02u %02u:%02u:%02u\n", t.day, t.month, t.year, t.hour, t.minute, t.second);
-  ble_output((uint8_t *)&buf, len);
-}
-#else
 /**
  * @brief Sends the current time over BLE in the format "DD.MM.YY HH:MM:SS"
  *
@@ -758,47 +923,28 @@ __STATIC_INLINE void get_current_time(void) {
   /* Send string over BLE */
   ble_output((uint8_t*)buf, len);
 }
-#endif
 
-#if 0
-__STATIC_INLINE void set_time(const uint8_t * t, unsigned len) {
 
-  /* Process time/date string and setup the onboard clock */
+/**
+ * @brief Sets the onboard clock to the specified time.
+ *
+ * This function processes a time/date string and sets the onboard clock to the specified time.
+ * The time/date string is passed in as a uint8_t pointer, with the length of the string passed 
+ * in as an unsigned integer.
+ *
+ * @param t Pointer to the time/date string.
+ * @param len Length of the time/date string.
+ */
+__STATIC_INLINE void set_time(const uint8_t *t, unsigned len) {
 
-  int day, month, year, hour, minute, second;
-
-  char buf[25];
-
-  memcpy(buf, t, len);
-  buf[len] = 0;
-
-  unsigned cnt = sscanf((const char *)buf, "%u.%u.%u %u:%u:%u", &day, &month, &year, &hour, &minute, &second);
-  if ((cnt != 0) && (day > 0) && (day < 32)) {
-    if ((month > 0) && (month < 13) && (hour < 24) && (minute < 60) && (second < 60)) {
-      time_struct_t t;
-      t.year = year;
-      t.month = month;
-      t.day = day;
-      t.hour = hour;
-      t.minute = minute;
-      t.second = second;
-      unsigned tim = time_to_unixtime(&t);
-      if (tim != 0) {
-        unix_time = tim;
-      }
-    }
-  }
-}
-#else
-__STATIC_INLINE void set_time(const uint8_t * t, unsigned len) {
-
-  /*
-    
-    This function processes a time/date string and sets the onboard clock to the specified time.
-    The time/date string is passed in as a uint8_t pointer, with the length of the string passed 
-    in as an unsigned integer.
-
-  */
+  /**
+   * @brief Process a time/date string and set the onboard clock to the specified time.
+   *
+   * This function parses the time/date string into day, month, year, hour, minute, and second variables.
+   * If parsing is successful and the parsed values are valid, a time_struct_t object is created and populated
+   * with the parsed values. The time_struct_t object is then converted to Unix time, and if the conversion
+   * is successful, the onboard clock (unix_time) is set to the Unix time value.
+   */
 
   /* Declare variables for the day, month, year, hour, minute, and second */
   int day, month, year, hour, minute, second;
@@ -835,107 +981,87 @@ __STATIC_INLINE void set_time(const uint8_t * t, unsigned len) {
     }
   }
 }
-#endif
 
 
+/**
+ * @brief Initializes the timer module.
+ *
+ * This function initializes the timer module by calling app_timer_init().
+ * It checks the return code and uses APP_ERROR_CHECK() to handle any errors.
+ */
 __STATIC_INLINE void init_timer(void) {
 
-  /*  Initialize the timer module  */
-
+  /**
+   * @brief Initialize the timer module.
+   */
   ret_code_t err_code = app_timer_init();
   APP_ERROR_CHECK(err_code);
 }
 
 
-#if 0
-__STATIC_INLINE void conn_evt_len_ext_set(bool status) {
-  ret_code_t err_code;
-  ble_opt_t  opt = {.common_opt.conn_evt_ext.enable = status ? 1 : 0};
-
-  err_code = sd_ble_opt_set(BLE_COMMON_OPT_CONN_EVT_EXT, &opt);
-  APP_ERROR_CHECK(err_code);
-
-}
-#else
 /**
- * Sets a BLE option for extending connection event length.
+ * @brief Sets a BLE option for extending connection event length.
  *
- * @param status a boolean value that determines whether to enable or disable the feature.
- *               true to enable, false to disable.
+ * This function sets a BLE option for extending the connection event length.
+ * The status parameter determines whether to enable or disable the feature,
+ * where true enables it and false disables it.
+ *
+ * @param status Boolean value indicating whether to enable or disable the feature.
  */
 __STATIC_INLINE void conn_evt_len_ext_set(bool status) {
   
-  /*
+  /**
+   * @brief Set a BLE option for extending connection event length.
+   *
+   * This function creates a ble_opt_t structure with the common_opt.conn_evt_ext.enable field
+   * set to 1 or 0 based on the `status` parameter. It then calls sd_ble_opt_set() to set the
+   * BLE option for extending the connection event length. The return value is checked using
+   * the APP_ERROR_CHECK() macro.
+   */
 
-    Create a ble_opt_t structure with the common_opt.conn_evt_ext.enable field 
-    set to 1 or 0 based on the `status` parameter.
-
-  */
-
-  ble_opt_t  opt = {.common_opt.conn_evt_ext.enable = status ? 1 : 0};
+  ble_opt_t opt = {.common_opt.conn_evt_ext.enable = status ? 1 : 0};
 
   /* Set the BLE option for extending connection event length using the `sd_ble_opt_set()` function. */
   /* The function returns an error code, which is checked using the `APP_ERROR_CHECK()` macro. */
 
   ret_code_t err_code = sd_ble_opt_set(BLE_COMMON_OPT_CONN_EVT_EXT, &opt);
   APP_ERROR_CHECK(err_code);
-
 }
-#endif
 
-#if 0
+
+/**
+ * @brief Initializes the Generic Access Profile (GAP) parameters of the BLE device.
+ *
+ * This function sets up the Generic Access Profile (GAP) parameters, permissions,
+ * and appearance of the BLE device.
+ */
 __STATIC_INLINE void init_gap_params(void) {
 
-  /* Setup GAP (Generic Access Profile) parameters, permissions and appearance */
-
-  uint32_t                err_code;
-  ble_gap_conn_sec_mode_t sec_mode;
-
-  ble_gap_conn_params_t   gap_conn_params = {
-    .min_conn_interval = MIN_CONN_INTERVAL,
-    .max_conn_interval = MAX_CONN_INTERVAL,
-    .slave_latency     = SLAVE_LATENCY,
-    .conn_sup_timeout  = CONN_SUP_TIMEOUT
-  };
-
-  BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
-  err_code = sd_ble_gap_device_name_set(&sec_mode, (const uint8_t *) DEVICE_NAME, strlen(DEVICE_NAME));
-  APP_ERROR_CHECK(err_code);
-
-  err_code = sd_ble_gap_ppcp_set(&gap_conn_params);
-  APP_ERROR_CHECK(err_code);
-
-  //conn_evt_len_ext_set(true);
-
-}
-#else
-__STATIC_INLINE void init_gap_params(void) {
-
-  /*
-   
-    This function sets up the Generic Access Profile (GAP) parameters, permissions, 
-    and appearance of the BLE device.
-
-  */
+  /**
+   * @brief Set up the Generic Access Profile (GAP) parameters.
+   *
+   * This function initializes the GAP connection parameters, security mode, device name,
+   * and preferred connection parameters for the BLE device. It also enables extended
+   * connection event length if required.
+   */
 
   /* Declare variables for error code and security mode */
-  uint32_t                 err_code;
-  ble_gap_conn_sec_mode_t  sec_mode;
+  uint32_t err_code;
+  ble_gap_conn_sec_mode_t sec_mode;
 
   /* Define the connection parameters for the BLE device */
-  ble_gap_conn_params_t    gap_conn_params = {
+  ble_gap_conn_params_t gap_conn_params = {
     .min_conn_interval = MIN_CONN_INTERVAL,
     .max_conn_interval = MAX_CONN_INTERVAL,
-    .slave_latency     = SLAVE_LATENCY,
-    .conn_sup_timeout  = CONN_SUP_TIMEOUT
+    .slave_latency = SLAVE_LATENCY,
+    .conn_sup_timeout = CONN_SUP_TIMEOUT
   };
 
   /* Set the security mode to open */
   BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
 
   /* Set the device name using the security mode and device name defined in the macro */
-  err_code = sd_ble_gap_device_name_set(&sec_mode, (const uint8_t *) DEVICE_NAME, strlen(DEVICE_NAME));
+  err_code = sd_ble_gap_device_name_set(&sec_mode, (const uint8_t *)DEVICE_NAME, strlen(DEVICE_NAME));
   APP_ERROR_CHECK(err_code);
 
   /* Set the preferred connection parameters using the gap_conn_params structure */
@@ -946,10 +1072,22 @@ __STATIC_INLINE void init_gap_params(void) {
   // conn_evt_len_ext_set(true);
 
 }
-#endif
 
-
+/**
+ * @brief Enters sleep mode.
+ *
+ * This function puts the chip into sleep mode. It sets the BSP indication to idle,
+ * enters power down mode, prepares wakeup buttons, and goes to system-off mode.
+ */
 static void enter_sleep_mode(void) {
+
+  /**
+   * @brief Enter sleep mode.
+   *
+   * This function puts the chip into sleep mode by setting the BSP indication to idle,
+   * entering power down mode, preparing wakeup buttons, and going to system-off mode.
+   * Note that this function will not return; a wakeup event will cause a reset.
+   */
 
   /* Put the chip into sleep mode. No return. */
 
@@ -972,10 +1110,22 @@ static unsigned print_help;
 static uint8_t spi_rx_buf[256];
 static uint8_t spi_tx_buf[256];
 
+/**
+ * @brief Handles data received from the Nordic UART BLE Service.
+ *
+ * This function processes the data received from the Nordic UART BLE Service and sends it to
+ * the UART module for further processing. It performs various actions based on the received commands.
+ *
+ * @param[in] p_evt The BLE NUS event containing the received data.
+ */
+static void handle_nus_data(ble_nus_evt_t* p_evt) {
 
-static void handle_nus_data(ble_nus_evt_t * p_evt) {
-
-  /* Process the data received from the Nordic UART BLE Service and send it to the UART module */
+  /**
+   * @brief Handle Nordic UART BLE Service data.
+   *
+   * This function processes the data received from the Nordic UART BLE Service and sends it to
+   * the UART module for further processing. It performs various actions based on the received commands.
+   */
 
   if (p_evt->type == BLE_NUS_EVT_RX_DATA) {
     uint32_t err_code;
@@ -1002,12 +1152,6 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
 
     char command = p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1];
     if ('\r' == command) command = p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 2];
-
-    // char buf[50];
-    // strcpy(buf, (char*)p_evt->params.rx_data.p_data);
-    // if (buf[0] != 0) {
-    //   buf[0] = 'x';
-    // }
 
     if ('a' == command) {
 
@@ -1203,10 +1347,24 @@ static void handle_nus_data(ble_nus_evt_t * p_evt) {
 }
 
 
+/**
+ * @brief Handles errors that occur during a Queued Write operation.
+ *
+ * This function is called when an error occurs during a Queued Write operation. It informs the application
+ * about the error by calling the APP_ERROR_HANDLER macro.
+ *
+ * @param[in] nrf_error The error code provided by the SoftDevice.
+ */
 static void handle_qwr_error(uint32_t nrf_error) {
 
-  /* Inform the application about an error */
+  /**
+   * @brief Handle Queued Write operation error.
+   *
+   * This function is called when an error occurs during a Queued Write operation. It informs the application
+   * about the error by calling the APP_ERROR_HANDLER macro.
+   */
 
+  /* Inform the application about an error */
   APP_ERROR_HANDLER(nrf_error);
 }
 
@@ -1281,10 +1439,24 @@ static void handle_conn_params_event(ble_conn_params_evt_t * p_evt) {
 }
 
 
+/**
+ * @brief Handles errors that occur in the Connection Parameters Module.
+ *
+ * This function is called when an error occurs in the Connection Parameters Module. It handles the errors
+ * by calling the APP_ERROR_HANDLER macro and informing the application about the error.
+ *
+ * @param[in] nrf_error The error code provided by the SoftDevice.
+ */
 static void handle_conn_params_error(uint32_t nrf_error) {
 
-  /* Handle errors from the Connection Parameters Module */
+  /**
+   * @brief Handle Connection Parameters Module error.
+   *
+   * This function is called when an error occurs in the Connection Parameters Module. It handles the errors
+   * by calling the APP_ERROR_HANDLER macro and informing the application about the error.
+   */
 
+  /* Handle errors from the Connection Parameters Module */
   APP_ERROR_HANDLER(nrf_error);
 }
 
@@ -1370,151 +1542,6 @@ static uint16_t m_ble_nus_max_data_len = NRF_SDH_BLE_GATT_MAX_MTU_SIZE - 2; /* M
  * @param[in] p_ble_evt Pointer to the Bluetooth stack event structure.
  * @param[in] p_context Pointer to context data.
  */
-#if 0
-static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
-
-  uint32_t err_code;
-  ble_gap_evt_t const * p_gap_evt = &p_ble_evt->evt.gap_evt;
-
-  switch (p_ble_evt->header.evt_id) {
-
-    case BLE_GAP_EVT_CONNECTED:
-      NRF_LOG_INFO("Connected");
-      err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-      APP_ERROR_CHECK(err_code);
-      m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-      err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
-      APP_ERROR_CHECK(err_code);
-
-        ble_gap_phys_t const phys = {
-          .tx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
-          .rx_phys = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
-        };
-        err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
-        APP_ERROR_CHECK(err_code);
-
-        ble_gap_conn_params_t   gap_conn_params = {
-          .min_conn_interval = MIN_CONN_INTERVAL,
-          .max_conn_interval = MIN_CONN_INTERVAL,
-          .slave_latency     = SLAVE_LATENCY,
-          .conn_sup_timeout  = CONN_SUP_TIMEOUT,
-        };
-        err_code = sd_ble_gap_conn_param_update(m_conn_handle /*p_gap_evt->conn_handle*/, &gap_conn_params);
-        APP_ERROR_CHECK(err_code);
-
-      err_code = sd_ble_gap_rssi_start(m_conn_handle, 0, 0);		
-      APP_ERROR_CHECK(err_code);
-
-      break;
-
-    case BLE_GAP_EVT_DISCONNECTED:
-      NRF_LOG_INFO("Disconnected");
-      /* LED indication off */
-
-      m_conn_handle = BLE_CONN_HANDLE_INVALID;
-      set_acquiring_state(ACQUIRING_INACTIVE);
-
-      break;
-
-    case BLE_GAP_EVT_CONN_PARAM_UPDATE: {
-        //m_conn_interval_configured = true;
-        NRF_LOG_INFO("Connection interval updated: 0x%x, 0x%x.",
-            p_gap_evt->params.conn_param_update.conn_params.min_conn_interval,
-            p_gap_evt->params.conn_param_update.conn_params.max_conn_interval);
-    } break;
-
-    case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST: {
-        // Accept parameters requested by the peer.
-        ble_gap_conn_params_t params;
-        params = p_gap_evt->params.conn_param_update_request.conn_params;
-        err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle, &params);
-        APP_ERROR_CHECK(err_code);
-
-        NRF_LOG_INFO("Connection interval updated (upon request): 0x%x, 0x%x.",
-            p_gap_evt->params.conn_param_update_request.conn_params.min_conn_interval,
-            p_gap_evt->params.conn_param_update_request.conn_params.max_conn_interval);
-
-        conn_evt_len_ext_set(true);
-
-    } break;
-
-    case BLE_GAP_EVT_PHY_UPDATE: {
-        ble_gap_evt_phy_update_t const * p_phy_evt = &p_ble_evt->evt.gap_evt.params.phy_update;
-
-        if (p_phy_evt->status == BLE_HCI_STATUS_CODE_LMP_ERROR_TRANSACTION_COLLISION)
-        {
-            // Ignore LL collisions.
-            NRF_LOG_DEBUG("LL transaction collision during PHY update.");
-            break;
-        }
-
-        //m_phy_updated = true;
-
-        ble_gap_phys_t phys = {0};
-        phys.tx_phys = p_phy_evt->tx_phy;
-        phys.rx_phys = p_phy_evt->rx_phy;
-        NRF_LOG_INFO("PHY update %s. PHY set to %s.",
-                     (p_phy_evt->status == BLE_HCI_STATUS_CODE_SUCCESS) ?
-                     "accepted" : "rejected",
-                     phy_str(phys));
-    } break;
-
-    case BLE_GAP_EVT_PHY_UPDATE_REQUEST: {
-      NRF_LOG_DEBUG("PHY update request.");
-      ble_gap_phys_t const phys = {
-        #if 0
-        .rx_phys = BLE_GAP_PHY_AUTO,
-        .tx_phys = BLE_GAP_PHY_AUTO,
-        #else
-        //.rx_phys = BLE_GAP_PHY_2MBPS,
-        //.tx_phys = BLE_GAP_PHY_2MBPS,
-        .tx_phys             = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
-        .rx_phys             = BLE_GAP_PHY_2MBPS | BLE_GAP_PHY_1MBPS | BLE_GAP_PHY_CODED,
-        #endif
-      };
-      err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
-      APP_ERROR_CHECK(err_code);
-    } break;
-
-    case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-      /* Reject pairing */
-      err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
-      APP_ERROR_CHECK(err_code);
-      break;
-
-    case BLE_GATTS_EVT_SYS_ATTR_MISSING:
-      /* No system attributes have been stored. */
-      err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
-      APP_ERROR_CHECK(err_code);
-      break;
-
-    case BLE_GATTC_EVT_TIMEOUT:
-      /* Disconnect on GATT Client timeout event. */
-      err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
-                                       BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-      APP_ERROR_CHECK(err_code);
-
-      err_code = sd_ble_gap_rssi_stop(m_conn_handle);
-      APP_ERROR_CHECK(err_code);
-
-      break;
-
-    case BLE_GATTS_EVT_TIMEOUT:
-      /* Disconnect on GATT Server timeout event. */
-      err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
-                                       BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-      APP_ERROR_CHECK(err_code);
-
-      err_code = sd_ble_gap_rssi_stop(m_conn_handle);
-      APP_ERROR_CHECK(err_code);
-
-      break;
-
-    default:
-      break;
-  }
-}
-#else
 static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
 	
   uint32_t err_code;
@@ -1697,10 +1724,9 @@ static void handle_ble_event(ble_evt_t const * p_ble_evt, void * p_context) {
       break;
   }
 }
-#endif
 
 /**
- * Initializes the BLE stack.
+ * @brief Initializes the BLE stack.
  *
  * This function initializes the SoftDevice and the BLE event interrupt.
  * It configures the BLE stack using the default settings, enables the BLE stack,
@@ -1731,54 +1757,47 @@ __STATIC_INLINE void init_ble_stack(void) {
 NRF_BLE_GATT_DEF(m_gatt);  /* GATT module instance.      */
 
 
-#if 0
-static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt) {
-
-  /* Handle events from the GATT library */
-
-  if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED)) {
-    m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
-    NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
-  }
-
-  NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
-                p_gatt->att_mtu_desired_central,
-                p_gatt->att_mtu_desired_periph);
-}
-
-#else
 /**
- * Handles GATT events.
+ * @brief Handles GATT events.
+ *
+ * This function handles GATT events, specifically checking if the connection handle matches
+ * and if the event is an ATT MTU update event. If it matches, it calculates the effective maximum data length
+ * and updates the value of `m_ble_nus_max_data_len`. It also logs the ATT MTU exchange status.
  *
  * @param[in] p_gatt Pointer to the GATT instance.
  * @param[in] p_evt  Pointer to the GATT event.
  */
 static void handle_gatt_event(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt) {
 
-    /* Check if the connection handle matches and if the event is an ATT MTU update event */
-    if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED)) {
+  /* Check if the connection handle matches and if the event is an ATT MTU update event */
+  if ((m_conn_handle == p_evt->conn_handle) && (p_evt->evt_id == NRF_BLE_GATT_EVT_ATT_MTU_UPDATED)) {
 
-        /* Calculate the effective maximum data length and update the value of m_ble_nus_max_data_len */
-        /* ATT MTU = ATT Protocol Data Unit (PDU) length - opcode length - handle length */
+    /* Calculate the effective maximum data length and update the value of m_ble_nus_max_data_len */
+    /* ATT MTU = ATT Protocol Data Unit (PDU) length - opcode length - handle length */
 
-        m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
+    m_ble_nus_max_data_len = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH;
 
-        NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
-    }
+    NRF_LOG_INFO("Data len is set to 0x%X(%d)", m_ble_nus_max_data_len, m_ble_nus_max_data_len);
+  }
 
-    /* Log the ATT MTU exchange status */
-    NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
-                  p_gatt->att_mtu_desired_central,
-                  p_gatt->att_mtu_desired_periph);
+  /* Log the ATT MTU exchange status */
+  NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
+                p_gatt->att_mtu_desired_central,
+                p_gatt->att_mtu_desired_periph);
 }
-#endif
+
 
 //#define CUSTOM_MTU 219
 #define CUSTOM_MTU 247
 
-__STATIC_INLINE void init_gatt(void) {
 
-  /* Initializie the GATT library */
+/**
+ * @brief Initializes the GATT library.
+ *
+ * This function initializes the GATT library by calling `nrf_ble_gatt_init()` with the provided GATT instance
+ * and the handler function for GATT events. It also sets the ATT MTU size for peripheral and central roles.
+ */
+__STATIC_INLINE void init_gatt(void) {
 
   ret_code_t err_code;
 
@@ -1800,12 +1819,22 @@ __STATIC_INLINE void init_gatt(void) {
   APP_ERROR_CHECK(err_code);
 }
 
+
+/**
+ * @brief Handles UART events.
+ *
+ * This function receives and processes characters from the app_uart. It maintains a static data array to store the received
+ * characters and an index to keep track of the position in the array. It handles different UART events, including data ready,
+ * communication error, and FIFO error. When a newline character or carriage return character is received, or when the data array
+ * reaches its maximum length, it triggers sending the data over BLE NUS using the `ble_output` function. If there is data in the
+ * array, it logs the data before sending.
+ *
+ * @param[in] p_event Pointer to the UART event.
+ */
 static void handle_uart_event(app_uart_evt_t * p_event) {
 
-  /* Receive and process characters from the app_uart  */
-
-  static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-  static uint8_t index = 0;
+  static uint8_t data_array[BLE_NUS_MAX_DATA_LEN]; /**< Static array to store received characters. */
+  static uint8_t index = 0;                        /**< Index to keep track of the position in the data array. */
   uint32_t       err_code;
 
   switch (p_event->evt_type) {
@@ -1820,7 +1849,6 @@ static void handle_uart_event(app_uart_evt_t * p_event) {
         err_code = bsp_indication_set(BSP_INDICATE_SENT_OK);
         APP_ERROR_CHECK(err_code);
 
-
         if (index > 1) {
           NRF_LOG_DEBUG("Ready to send data over BLE NUS");
           NRF_LOG_HEXDUMP_DEBUG(data_array, index);
@@ -1829,7 +1857,6 @@ static void handle_uart_event(app_uart_evt_t * p_event) {
         }
 
         index = 0;
-
       }
       break;
 
@@ -1846,9 +1873,16 @@ static void handle_uart_event(app_uart_evt_t * p_event) {
   }
 }
 
-__STATIC_INLINE void init_uart(void) {
 
-  /* Initialize the UART module */
+/**
+ * @brief Initializes the UART module.
+ *
+ * This function initializes the UART module by calling `APP_UART_FIFO_INIT()` with the provided communication parameters,
+ * buffer sizes, handler function for UART events, and IRQ priority. It sets up the UART communication parameters including
+ * the RX pin number, TX pin number, flow control, parity usage, and baud rate. It performs error checking using the
+ * `APP_ERROR_CHECK()` macro.
+ */
+__STATIC_INLINE void init_uart(void) {
 
   uint32_t                     err_code;
   app_uart_comm_params_t const comm_params = {
@@ -1964,39 +1998,6 @@ static void handle_bsp_event(bsp_event_t event) {
  * includes the device name, flags, and UUIDs. The advertising configuration includes the
  * advertising interval and timeout. The event handler is used to handle advertising events.
  */
-#if 0
-__STATIC_INLINE void init_advertising(void) {
-
-  /* Initialize the Advertising functionality */
-
-  uint32_t               err_code;
-  ble_advertising_init_t init = {0};
-
-  // memset(&init, 0, sizeof(init));
-
-  init.advdata.name_type          = BLE_ADVDATA_FULL_NAME;
-  init.advdata.include_appearance = false;
-
-  #if 1
-  init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;
-  #else
-  init.advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-  #endif
-
-  init.srdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-  init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
-
-  init.config.ble_adv_fast_enabled  = true;
-  init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
-  init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
-  init.evt_handler = handle_advertising_event;
-
-  err_code = ble_advertising_init(&m_advertising, &init);
-  APP_ERROR_CHECK(err_code);
-
-  ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
-}
-#else
 __STATIC_INLINE void init_advertising(void) {
 
   uint32_t err_code;
@@ -2028,14 +2029,21 @@ __STATIC_INLINE void init_advertising(void) {
   /* Set the connection configuration tag for the advertising module */
   ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
 }
-#endif
 
 
+/**
+ * @brief Initializes the Board Support Package (BSP).
+ *
+ * This function initializes buttons and LEDs by calling `bsp_init()` with the flags for LED and button initialization and
+ * the handler function for BSP events. It also initializes the BSP button module for BLE operation using `bsp_btn_ble_init()`.
+ * The startup event is stored in the `startup_event` variable, and if it indicates a request to clear bonding data,
+ * the `p_erase_bonds` parameter is updated accordingly.
+ *
+ * @param[in] p_erase_bonds Pointer to a boolean indicating whether to erase bonds.
+ */
 __STATIC_INLINE void init_bsp(bool * p_erase_bonds) {
 
-  /* Initialize buttons and leds */
-
-  bsp_event_t startup_event;
+  bsp_event_t startup_event; /**< BSP startup event. */
 
   uint32_t err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, handle_bsp_event);
   APP_ERROR_CHECK(err_code);
@@ -2047,47 +2055,59 @@ __STATIC_INLINE void init_bsp(bool * p_erase_bonds) {
 }
 
 
+/**
+ * @brief Initializes the nRF Log module.
+ *
+ * This function initializes the nRF Log module by calling `NRF_LOG_INIT()` with a null logger backend to use the default backend.
+ * It then initializes the default backends for the nRF Log module using `NRF_LOG_DEFAULT_BACKENDS_INIT()`.
+ */
 __STATIC_INLINE void init_log(void) {
-
-  /* Initialize the nrf log module */
 
   ret_code_t err_code = NRF_LOG_INIT(NULL);
   APP_ERROR_CHECK(err_code);
 
   NRF_LOG_DEFAULT_BACKENDS_INIT();
-  
 }
 
 
+/**
+ * @brief Initializes power management.
+ *
+ * This function initializes power management by calling `nrf_pwr_mgmt_init()`.
+ */
 __STATIC_INLINE void init_power_management(void) {
+
+  /**
+   * @brief Initialize power management.
+   *
+   * This function initializes power management by calling `nrf_pwr_mgmt_init()`.
+   */
+
   ret_code_t err_code;
   err_code = nrf_pwr_mgmt_init();
   APP_ERROR_CHECK(err_code);
 }
 
 
+/**
+ * @brief Starts advertising.
+ *
+ * This function starts advertising in the advertising mode that was enabled during initialization. It calls
+ * `ble_advertising_start()` with the advertising structure (`m_advertising`) and the advertising mode
+ * (`BLE_ADV_MODE_FAST`). It performs error checking using the `APP_ERROR_CHECK()` macro.
+ */
 __STATIC_INLINE void start_advertising(void) {
-
-  /* Start advertising in the advertising modes that was enabled during initialization */
 
   uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
   APP_ERROR_CHECK(err_code);
 }
+
 
 static const nrfx_spim_t     spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE);  /* SPI instance.    */
 static volatile bool         spi_xfer_done;                           /* Flag used to indicate that SPI instance completed the transfer. */
 
 static nrfx_spim_xfer_desc_t xfer = {.p_tx_buffer = (uint8_t const *)(spi_tx_buf), .p_rx_buffer = spi_rx_buf};
 
-/*
-#define NRFX_SPIM_SINGLE_XFER(p_tx, tx_len, p_rx, rx_len) \
-    {                                                     \
-    .p_tx_buffer = (uint8_t const *)(p_tx),               \
-    .tx_length = (tx_len),                                \
-    .p_rx_buffer = (p_rx),                                \
-    .rx_length = (rx_len),                                \
-    }
-*/
 
 #if defined(OLD_BOARD)
 #define MAX_DATA_LENGTH 244
@@ -2119,6 +2139,16 @@ static x_union_t x, y;
 
 static uint8_t bndx;
 
+
+/**
+ * @brief Starts sending a command to the ADC.
+ *
+ * This function starts sending a command to the ADC by setting the command byte in the SPI transmit buffer (`spi_tx_buf`).
+ * It configures the transfer length for both transmit and receive to 1 byte. Then, it performs the SPI transfer using
+ * `nrfx_spim_xfer()` in a loop until the transfer is not busy. It performs error checking using the `APP_ERROR_CHECK()` macro.
+ *
+ * @param[in] cmd The command byte to be sent to the ADS1298 ADC.
+ */
 __STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd) {
 
   spi_tx_buf[0] = cmd;
@@ -2132,24 +2162,41 @@ __STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd) {
   } while (NRF_ERROR_BUSY == err_code);
 
   APP_ERROR_CHECK(err_code);
-
 }
 
+
+/**
+ * @brief Waits for the completion of the command transmission.
+ *
+ * This function waits for the completion of the command transmission by continuously checking the status
+ * of the `spi_xfer_done` flag. It uses the `__WFE()` (Wait For Event) instruction to put the processor core into a low-power
+ * state until an event occurs. Once the `spi_xfer_done` flag is set, indicating that the SPI transfer is completed,
+ * the function exits the loop and returns.
+ */
 __STATIC_INLINE void ads_finish_sending_cmd(void) {
 
   while (!spi_xfer_done) {
     __WFE();
   }
-
 }
 
+
+/**
+ * @brief Sends a command to the ADS.
+ *
+ * This function sends a command to the ADS by calling the `ads_start_sending_cmd` function to initiate the command
+ * transmission and the `ads_finish_sending_cmd` function to wait for its completion. It sets the `spi_xfer_done` flag to false
+ * before starting the command transmission and waits until the transmission is completed before returning.
+ *
+ * @param[in] cmd The command byte to be sent to the ADS1298 ADC.
+ */
 __STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
 
   spi_xfer_done = false;
   ads_start_sending_cmd(cmd);
   ads_finish_sending_cmd();
-
 }
+
 
 static int loop_counter;
 
@@ -2740,13 +2787,15 @@ __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t co
         
         for (size_t i = 1; i < DATA_LEN / 3; i++) { 
          
-          buf[i - 1] = __REV16(*(uint16_t*)&src[i]);  /* convert big-endian 24-bit value to    */
-                                                      /*     little-endian 16-bit one          */
+          buf[i - 1] = __REV16(*(uint16_t*)&src[i]);  /* convert a big-endian 24-bit value to    */
+                                                      /*    a little-endian 16-bit one           */
         }
         
         uint32_t d;
+        unsigned_24_t *u24 = (unsigned_24_t *)&d;
         
-        *(unsigned_24_t *)(&d) = src[0];
+        //*(unsigned_24_t *)(void*)&d = src[0];
+        *u24 = src[0];
         
         d = __REV(d) >> 8;
         d <<= 4;
