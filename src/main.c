@@ -1172,7 +1172,7 @@ static void handle_nus_data(ble_nus_evt_t* p_evt) {
 
       register_pool_t r = ADS1298_WORKING_CONFIG;
 
-      ads_start_writting_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
+      ads_start_writing_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
 
       p_evt->params.rx_data.length = 0;
 
@@ -1205,7 +1205,7 @@ static void handle_nus_data(ble_nus_evt_t* p_evt) {
       register_pool_t k = {0};
 
       if (memcmp(&r, &k, sizeof(k)) != 0) {
-        ads_start_writting_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
+        ads_start_writing_register(0, ADS129X_REG_POOL_SIZE, (uint8_t*)&r);
       }
 
       p_evt->params.rx_data.length = 0;
@@ -2200,16 +2200,34 @@ __STATIC_INLINE void ads_send_cmd(uint8_t cmd) {
 
 static int loop_counter;
 
+
+/**
+ * @brief Handles the idle state of the system.
+ *
+ * This function performs various tasks when the system is in idle state,
+ * such as printing help information, dumping registers, performing transmission tests,
+ * starting and monitoring data acquisition, and handling other system operations.
+ */
 __STATIC_INLINE void handle_idle_state(void) {
 
-  /* Sleep until the next event occurs if there is no pending log operation */
-
   if (print_help != 0) {
+
+    /**
+     * @brief Print Help Information
+     *
+     * This section prints help information based on the print_help flag.
+     */
 
     help();
     print_help = 0;
 
   } else if (reg_dump_req != 0) {
+
+    /**
+     * @brief Dump Registers
+     *
+     * This section dumps registers by reading the register values and sending them over BLE.
+     */
 
     uint8_t buf[ADS129X_REG_POOL_SIZE];
     int ndx = 0;
@@ -2229,6 +2247,14 @@ __STATIC_INLINE void handle_idle_state(void) {
     reg_dump_req = 0;
 
   } else if (test_req != 0) {
+
+    /**
+     * @brief Transmission Test
+     *
+     * This section performs a transmission test by sending blocks of data over BLE.
+     * The test involves starting a timer, generating data blocks, and sending them over BLE.
+     * After the transmission is complete, the transmission speed is calculated and logged.
+     */
 
     NRF_LOG_INFO("Transmission test started.");
     NRF_LOG_FLUSH();
@@ -2266,6 +2292,13 @@ __STATIC_INLINE void handle_idle_state(void) {
 
   } else if (ACQUIRING_INACTIVE == get_acquiring_state()) {
 
+    /**
+     * @brief Start Conversions (ADS129X)
+     *
+     * This section checks if data acquisition is requested and starts the conversion process
+     * by sending the START command to the ADS129X device.
+     */
+
     /* NOTE: When using the START opcode to begin conversions, hold the START pin low. */
 
     if (acquiring_status != 0) {
@@ -2283,12 +2316,26 @@ __STATIC_INLINE void handle_idle_state(void) {
 
   } else if (ACQUIRING_ACTIVE == get_acquiring_state()) {
 
+    /**
+     * @brief Start Acquiring Data
+     *
+     * This section checks if the data ready pin is active and starts acquiring data
+     * from the ADS device.
+     */
+
     if (0 == nrf_gpio_pin_read(ADS_DATA_READY_PIN)) {
       ads_start_acquiring();             /* START CONVERSION */
       set_acquiring_state(ACQUIRING_IN_PROGRESS);
     }
 
   } else if (ACQUIRING_DATA_READY == get_acquiring_state()) {
+
+    /**
+     * @brief Finish Acquiring Data
+     *
+     * This section finishes acquiring data from the ADS device,
+     * processes and outputs the acquired data over BLE, and updates the system state accordingly.
+     */
 
     #if 0
     void *p = x.buf + 24 * bndx++;
@@ -2320,6 +2367,13 @@ __STATIC_INLINE void handle_idle_state(void) {
     set_acquiring_state(ACQUIRING_INACTIVE);
 
   } else {
+
+    /**
+     * @brief System Idle Operation
+     *
+     * This section handles system idle operations such as processing logs and managing power.
+     */
+
     if (NRF_LOG_PROCESS() == false) {
       nrf_pwr_mgmt_run();
     }
@@ -2327,50 +2381,36 @@ __STATIC_INLINE void handle_idle_state(void) {
 }
 
 
+/**
+ * @brief Handles SPIM events.
+ *
+ * This function is called when a SPIM event occurs. It updates the acquiring state
+ * based on the event type and sets the `spi_xfer_done` flag to indicate completion
+ * of the SPI transfer.
+ *
+ * @param[in] p_event    Pointer to the SPIM event structure.
+ * @param[in] p_context  Void pointer to the context (unused in this function).
+ */
 void handle_spim_event(nrfx_spim_evt_t const * p_event, void * p_context) {
-
-  /* Handle SPIM user event.            */
+    
+  /**
+   * Handle SPIM user event.
+   */
 
   spi_xfer_done = true;
 
   if (ACQUIRING_STARTED == get_acquiring_state()) {
 
-    set_acquiring_state(ACQUIRING_ACTIVE);
+      set_acquiring_state(ACQUIRING_ACTIVE);
 
   } else if (ACQUIRING_IN_PROGRESS == get_acquiring_state()) {
 
-    set_acquiring_state(ACQUIRING_DATA_READY);
+      set_acquiring_state(ACQUIRING_DATA_READY);
 
   }
-
 }
 
 
-#if 0
-__STATIC_INLINE void init_spim(void) {
-
-  /* Init SPIM peripheral */
-
-  nrfx_spim_config_t spi_config = {
-    .sck_pin        = SPI_SCK_PIN,
-    .mosi_pin       = SPI_MOSI_PIN,
-    .miso_pin       = SPI_MISO_PIN,
-    .ss_pin         = SPI_SS_PIN,
-    .ss_active_high = false,
-    .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
-    .orc            = 0xFF,
-    .frequency      = NRF_SPIM_FREQ_1M,
-    .mode           = NRF_SPIM_MODE_1,
-    .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
-    NRFX_SPIM_DEFAULT_EXTENDED_CONFIG
-  };
-
-  uint32_t err_code = nrfx_spim_init(&spi, &spi_config, handle_spim_event, NULL);
-  APP_ERROR_CHECK(err_code);
-  
-  NRF_LOG_INFO("SPIM peripheral enabled.");
-}
-#else
 /**
 
     @brief Initializes the SPIM peripheral.
@@ -2381,7 +2421,7 @@ __STATIC_INLINE void init_spim(void) {
         SS pin         : SPI_SS_PIN
         SS active high : false
         IRQ priority   : NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY
-        SPI frequency  : NRF_SPIM_FREQ_1M
+        SPI frequency  : NRF_SPIM_FREQ_xM
         SPI mode       : NRF_SPIM_MODE_1
         Bit order      : NRF_SPIM_BIT_ORDER_MSB_FIRST
         Output resistance calibration (ORC) value: 0xFF
@@ -2398,7 +2438,7 @@ __STATIC_INLINE void init_spim(void) {
     .ss_active_high = false,
     .irq_priority   = NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY,
     .orc            = 0xFF,
-    .frequency      = NRF_SPIM_FREQ_8M,
+    .frequency      = NRF_SPIM_FREQ_4M,
     //.frequency      = NRF_SPIM_FREQ_125K,
     .mode           = NRF_SPIM_MODE_1,
     .bit_order      = NRF_SPIM_BIT_ORDER_MSB_FIRST,
@@ -2412,34 +2452,33 @@ __STATIC_INLINE void init_spim(void) {
   /* Log that SPIM peripheral has been enabled */
   NRF_LOG_INFO("SPIM peripheral enabled.");
 }
-#endif
 
 
+/**
+ * @brief Finishes reading a register from the ADS device.
+ *
+ * This function copies the data received via SPI into the provided buffer,
+ * excluding the first two bytes (2 + spi_rx_buf) and considering the length
+ * of the received data (xfer.rx_length - 2).
+ *
+ * @param[out] data  Pointer to the buffer where the data will be copied.
+ */
 __STATIC_INLINE void ads_finish_reading_register(uint8_t *data) {
   memcpy(data, 2 + spi_rx_buf, xfer.rx_length - 2);
 }
 
-#if 0
+
+/**
+ * @brief Starts reading a specified register on the ADS129x device.
+ *
+ * This function initiates the process of reading data from a specified register
+ * on the ADS129x device. It sets up the SPI transfer parameters, including the
+ * command, register number, and the number of bytes to read.
+ *
+ * @param[in] reg_no  The register number to read (0-31).
+ * @param[in] count   The number of bytes to read from the register (1-31).
+ */
 __STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
-
-  spi_tx_buf[0]  = ADS129X_RREG | (reg_no & 0x1F);
-  spi_tx_buf[1]  = count & 0x1F;
-  xfer.tx_length = 2;
-  xfer.rx_length = count + 2;
-
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
-
-  APP_ERROR_CHECK(err_code);
- 
-}
-#else
-__STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
-  /*
-    Start reading a specified register on the ADS129x device
-    reg_no : the register number to read (0-31)
-    count  : the number of bytes to read from the register (1-31)
-
-  */
 
   /* Set the first byte of the SPI transfer to the RREG command and the register number */
   spi_tx_buf[0]  = ADS129X_RREG | (reg_no & 0x1F);
@@ -2464,71 +2503,71 @@ __STATIC_INLINE void ads_start_reading_register(uint8_t reg_no, uint8_t count) {
   /* Check for errors and halt execution if an error is detected */
   APP_ERROR_CHECK(err_code);
 }
-#endif
 
-#if 0
-__STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
 
-  spi_xfer_done = false;
-  ads_start_reading_register(reg_no, count);
-
-  while (!spi_xfer_done) {
-    __WFE();
-  }
-
-  ads_finish_reading_register(data);
-
-}
-#else
 /**
-
-    @brief Reads data from a specified register on the ADS129x device
-    @param reg_no The register number to read (0-31)
-    @param count The number of bytes to read from the register (1-31)
-    @param data A pointer to a buffer to store the read data
-    */
+ * @brief Reads data from a specified register on the ADS129x device.
+ *
+ * This function reads data from a specified register on the ADS129x device.
+ * It starts the SPI transfer, waits for the transfer to complete, and then
+ * finishes reading the register and stores the data in the provided buffer.
+ *
+ * @param[in] reg_no  The register number to read (0-31).
+ * @param[in] count   The number of bytes to read from the register (1-31).
+ * @param[out] data   A pointer to a buffer to store the read data.
+ */
 __STATIC_INLINE void ads_read_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
-    
+
   spi_xfer_done = false; /* Set the SPI transfer flag to false */
   ads_start_reading_register(reg_no, count); /* Start reading the specified register */
 
-  while (!spi_xfer_done) { /* Wait for the SPI transfer to complete */
+  while (!spi_xfer_done) { 
+    /* Wait for the SPI transfer to complete */
     /* Use the Wait For Event (WFE) instruction to enter a low power state until */
     /* an event (in this case, the SPI transfer completion) wakes up the CPU     */
     __WFE();
   }
-  
+
   ads_finish_reading_register(data); /* Finish reading the register and store the data in the provided buffer */
-
 }
-#endif
 
 
-__STATIC_INLINE uint32_t ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data) {
-
+/**
+ * @brief Starts writing data to a specified register on the ADS129x device.
+ *
+ * This function initiates the process of writing data to a specified register
+ * on the ADS129x device. It sets up the SPI transfer parameters, including the
+ * command, register number, data to write, and the number of bytes to write.
+ *
+ * @param[in] reg_no  The register number to write (0-31).
+ * @param[in] count   The number of bytes to write to the register (1-31).
+ * @param[in] data    A pointer to the buffer containing the data to write.
+ *
+ * @return Error code indicating the success or failure of the SPI transfer.
+ */
+__STATIC_INLINE uint32_t ads_start_writing_register(uint8_t reg_no, uint8_t count, uint8_t *data) {
+  
   spi_tx_buf[0] = ADS129X_WREG | (reg_no & 0x1F);
   spi_tx_buf[1] = count & 0x1F;
-
+  
   xfer.tx_length = count + 2;
   xfer.rx_length = 1;
   
   memcpy(2 + spi_tx_buf, data, count);
-
+  
   uint32_t err_code;
-
+  
   do {
-
-    err_code = nrfx_spim_xfer(&spi, &xfer, 0);
-
-  } while(NRF_ERROR_BUSY == err_code);
-
+      err_code = nrfx_spim_xfer(&spi, &xfer, 0);
+  } while (NRF_ERROR_BUSY == err_code);
+  
   APP_ERROR_CHECK(err_code);
-
+  
   return err_code;
-
 }
 
-__STATIC_INLINE void ads_finish_writting_register(void) { 
+
+__STATIC_INLINE void ads_finish_writing_register(void) { 
 
   // while (!spi_xfer_done) {
   //   //__WFE();
@@ -2536,165 +2575,45 @@ __STATIC_INLINE void ads_finish_writting_register(void) {
 
 }
 
-#if 0
+
+/**
+ * @brief Writes data to an ADS register.
+ *
+ * This function starts writing data to the specified ADS register using SPI communication.
+ *
+ * @param reg_no The register number to write to.
+ * @param count The number of bytes to write.
+ * @param data A pointer to the data buffer containing the bytes to write.
+ */
 __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
-  uint8_t temp_data[0x1f + 2] = {ADS129X_WREG | (reg_no & 0x1F), (count & 0x1F)};
-  uint8_t tmp;
-
-  memcpy(2 + temp_data, data, count);
-
   spi_xfer_done = false;
-
-  nrfx_spim_xfer_desc_t xfer = NRFX_SPIM_XFER_TRX(temp_data, count + 2, &tmp, 1);
-
-  uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
-
-  APP_ERROR_CHECK(err_code);
- 
-  while (!spi_xfer_done) {
-    __WFE();
-  }
-
+  ads_start_writing_register(reg_no, count, data);
+  ads_finish_writing_register();
 }
-#else
-__STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data) {
-  
-  spi_xfer_done = false;
-  ads_start_writting_register(reg_no, count, data);
-  ads_finish_writting_register();
-}
-
-#endif
 
 
 #define DATA_LEN (27 + 1)
 
 
+/**
+ * @brief Starts acquiring data from ADS.
+ *
+ * This function initiates the acquisition process from the ADS device by sending the appropriate command
+ * and configuring the SPI transfer parameters.
+ */
 __STATIC_INLINE void ads_start_acquiring(void) {
-
-  // register_pool_t r = ADS1298_CONFIG;
-
   spi_tx_buf[0] = ADS129X_RDATA;
-
+  
   xfer.tx_length = 1;
   xfer.rx_length = 1 + 8 * ((HIGH_RES_32k_SPS == get_acquiring_mode()) ? 2 : 3);
   
   spi_xfer_done = false;
-
+  
   uint32_t err_code = nrfx_spim_xfer(&spi, &xfer, 0);
-
+  
   APP_ERROR_CHECK(err_code);
-
 }
  
-#if 0
-__STATIC_INLINE unsigned ads_finish_acquiring(void *data, ads_convert_t conv_type, unsigned status_word_req) {
-
-  static unsigned status;
-
-  typedef struct {
-     uint8_t low;
-     uint8_t mid;
-     uint8_t high;
-  } unsigend_24_t;
-
-  if (ADS_CONVERT_24_24 == conv_type) {
-
-    unsigend_24_t *src = (unsigend_24_t*)&spi_rx_buf[1];
-    uint8_t *dst = (uint8_t *) data;
-
-    uint32_t d;
-
-    for (size_t i = 1; i < DATA_LEN / 3; i++) {
-
-      *(unsigend_24_t *)(&d) = src[i];          /* copy 24-bit value to 32-bit var          */
-      d = __REV(d) >> 8;                        /* convert from big-endian to little-endian */
-      memcpy(dst + (i - 1) * 3, &d, 3);
-    
-    }
-
-    *(unsigend_24_t *)(&d) = src[0];
-    d = __REV(d) >> 8;                          /* convert from big-endian to little-endian */
-    d = (d << 4) & 0x00FFFFFF;                  /* alighn 'status register' bits            */
-    status |= d;
-
-    if (0 != status_word_req) {
-      *(uint32_t*)(data + 10 * 8 * 3) = status | 0xFF000000;
-      status = 0;
-    }
-
-  
-    #if 0
-      inbuf->low = 0xc1;
-      inbuf->mid = 0x23;
-      inbuf->high = 0x45;
-    #endif
-  
-    // for (size_t i = 0; i < DATA_LEN / 3; i++) { 
-    //   
-    //   *(unsigend_24_t *)&data[i] = inbuf[i];  /* copy 24-bit value to 32-bit var          */
-    //   data[i] = __REV(data[i]) >> 8;          /* convert from big-endian to little-endian */
-    // 
-    //   if ((i > 0) && (data[i] & 0x800000)) {  /* Check for negative number                */
-    //     data[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
-    //   }
-    // }
-    //
-    // data[0] = (data[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
-
-    // for (size_t i = 0; i < DATA_LEN / 3; i++) { 
-    //   
-    //   *(unsigend_24_t *)(dst + i) = src[i]; /* copy 24-bit value to 32-bit var          */
-    //   dst[i] = __REV(dst[i]) >> 8;          /* convert from big-endian to little-endian */
-    // 
-    //   if ((i > 0) && (dst[i] & 0x800000)) {  /* Check for negative number                */
-    //     dst[i] |= 0xFF000000;                /* Sign extend to 32-bit                    */
-    //   }
-    // }
-    // 
-    // dst[0] = (dst[0] << 4) & 0x00FFFFFF;    /* alighn 'status register' bits            */
-
-    // uint8_t buf[8 * 3];
-
-
-  } else if (ADS_CONVERT_24_16 == conv_type) {
-
-    unsigend_24_t *src = (unsigend_24_t*)&spi_rx_buf[1];
-    uint16_t buf[DATA_LEN / 3];
-
-    for (size_t i = 1; i < DATA_LEN / 3; i++) { 
-     
-      buf[i] = __REV16(*(uint16_t*)&src[i]);               /* copy 24-bit value to 32-bit var          */
-
-    }
-
-    uint32_t d;
-
-    *(unsigend_24_t *)(&d) = src[0];
-
-    d = __REV(d) >> 8;
-    d <<= 4;
-
-    status |= d;
-    
-    memcpy(data, &buf[1], 8 * sizeof(uint16_t));
-
-    if (0 != status_word_req) {
-      d = status | 0xFF000000;                   /* Add packet-mark */
-      memcpy(data + 8 * sizeof(uint16_t), &status, sizeof(status));
-      status = 0;
-    }
-
-  } else if (ADS_CONVERT_16_16 == conv_type) {
-  } else if (ADS_CONVERT_16_8 == conv_type)  {
-  } else {
-    APP_ERROR_CHECK((uint32_t)(conv_type));
-  }
-
-  return status_word_req;
-
-}
-#else
 
 typedef struct {  /* Define a structure to represent a 24-bit unsigned integer */
     uint8_t low;  /* 8 least significant bits                                  */
@@ -2703,49 +2622,52 @@ typedef struct {  /* Define a structure to represent a 24-bit unsigned integer *
 } unsigned_24_t;
 
 
+/**
+ * @brief Reverse the order of bytes in a 24-bit value.
+ *
+ * The function takes a pointer to a 24-bit value (represented as three contiguous bytes in memory)
+ * and swaps the first and third bytes. This could be useful in various applications
+ * where it is necessary to manipulate the order of bytes in a data stream,
+ * such as in networking or file I/O operations.
+ *
+ * The function provides two options for performing the swap:
+ *
+ * Option 1: Use a temporary variable to swap the bytes. This is a simple and efficient method
+ *           that avoids the need for XOR operations.
+ * Option 2: Use XOR operations to swap the bytes. This method is more complex and less efficient
+ *           than using a temporary variable, but it can be useful in certain situations
+ *           where memory usage is a concern.
+ *
+ * Note that the function is defined as a static inline function using the __STATIC_FORCEINLINE macro,
+ * which suggests that it is intended for use in performance-critical code that requires fast execution.
+ *
+ * @param p24 Pointer to the 24-bit value.
+ */
 __STATIC_FORCEINLINE void rev24(void *p24) {
-/*
-  The function takes a pointer to a 24-bit value (represented as three contiguous bytes in memory) 
-  and swaps the first and third bytes. This could be useful in various applications 
-  where it is necessary to manipulate the order of bytes in a data stream, 
-  such as in networking or file I/O operations.
-  
-  The function provides two options for performing the swap:
-  
-      Option 1: use a temporary variable to swap the bytes. This is a simple and 
-                efficient method that avoids the need for XOR operations.
-      Option 2: use XOR operations to swap the bytes. This method is more complex 
-                and less efficient than using a temporary variable, 
-                but it can be useful in certain situations where memory usage is a concern.
-  
-  Note that the function is defined as a static inline function using 
-  the __STATIC_FORCEINLINE macro, which suggests that it is intended 
-  for use in performance-critical code that requires fast execution.
-*/
-
-  #if 1 /* Option 1: use a temporary variable to swap the bytes */
+  #if 1 /* Option 1: Use a temporary variable to swap the bytes */
     uint8_t t = *(uint8_t *)p24;             /* Store the first byte in a temporary variable */
     *(uint8_t *)p24 = *(uint8_t *)(p24 + 2); /* Copy the third byte to the first byte's location */
     *(uint8_t *)(p24 + 2) = t;               /* Copy the byte from the temporary variable to the third byte's location */
   
-  #else /* Option 2: use XOR operations to swap the bytes (not currently used) */
+  #else /* Option 2: Use XOR operations to swap the bytes (not currently used) */
     *(uint8_t *)p24 = *(uint8_t *)p24 ^ *(uint8_t *)(p24 + 2);
     *(uint8_t *)(p24 + 2) = *(uint8_t *)(p24 + 2) ^ *(uint8_t *)p24;
     *(uint8_t *)p24 = *(uint8_t *)p24 ^ *(uint8_t *)(p24 + 2);
   #endif
 }
 
+/**
+ * @brief Function to finish acquiring data from an ADS device.
+ *
+ * @param data              Pointer to the buffer where the acquired data should be stored.
+ * @param conv_type         The type of conversion to perform on the acquired data.
+ * @param status_word_req   Flag indicating whether to include a status word in the acquired data.
+ *
+ * @return Information about whether the package formation has been completed.
+ */
 __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t conv_type, unsigned status_word_req) {
 
-  /*
-      Function to finish acquiring data from an ADS device
-      data             : pointer to the buffer where the acquired data should be stored
-      conv_type        : the type of conversion to perform on the acquired data
-      status_word_req  : flag indicating whether to include a status word in the acquired data
-      ========================================================================================
-      Returns          : information about whether the package formation has been completed
-  */
-    
+  
     if (data == NULL) { /* If the data pointer is NULL, return 0 */
         return 0;
     }
@@ -2849,22 +2771,11 @@ __STATIC_INLINE unsigned ads_finish_acquiring(const void *data, ads_convert_t co
 
     return status_word_req; /* Return the status */
 }
-#endif
-
-// void handle_pin_interrupt(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
-//     // Exception handler
-//     __NOP();
-// }
 
 
-// typedef union {
-//    status_reg_t status;
-//    int channel[9];
-// } ads1298_sample_t ;
-
-//static int bkup[30][9];
-//static int bk_ndx;
-
+/**
+ * @brief Function to initialize the ADS1298 chip.
+ */
 __STATIC_INLINE void init_ads1298(void) {
 
   /* Configure ADS1298 Chip */
@@ -2880,10 +2791,12 @@ __STATIC_INLINE void init_ads1298(void) {
   nrf_delay_us(500);
   nrf_gpio_pin_set(ADS_RESET_PIN);
   
-    /* From 9.5.2:                                                                 */
-    /*   NDS Enable Read Data Continuous mode.                                     */
-    /*   RDATAC 0001 0000 (10h) — This mode is the default mode at power up.       */
-    /*   When in RDATAC mode, the RREG command is ignored.                         */
+  /** 
+   * From 9.5.2:
+   * NDS Enable Read Data Continuous mode.
+   * RDATAC 0001 0000 (10h) — This mode is the default mode at power up.
+   * When in RDATAC mode, the RREG command is ignored.
+   */ 
 
   ads_send_cmd(ADS129X_SDATAC);                              /* Disable RDTAC mode */
 
@@ -2933,22 +2846,32 @@ static volatile bool m_xfer_done = false;                                 /* Ind
 static uint8_t m_sample;                                                  /* Buffer for samples read from TWI device.         */
 
 
+/**
+ * @brief Function to send and receive data from a TWI device.
+ */
 __STATIC_INLINE void test_twi(void) {
 
   /* Send to and receive from TWI device. */
 
   m_xfer_done = false;
 
+  // Transmit data to the TWI device
   ret_code_t err_code = nrf_drv_twi_tx(&m_twi, 0x68, &m_sample, sizeof(m_sample), 0);
   APP_ERROR_CHECK(err_code);
 
   nrf_delay_ms(500);
 
+  // Receive data from the TWI device (1 byte)
   err_code = nrf_drv_twi_rx(&m_twi, 0x68, &m_sample, sizeof(m_sample)); /* Read 1 byte from the specified address. */
   APP_ERROR_CHECK(err_code);
 }
 
   
+/**
+ * @brief Function to handle data from a TWI device.
+ *
+ * @param[in] data The data read from the TWI device.
+ */
 __STATIC_INLINE void handle_data(uint8_t data) {
 
   /* Handle data from TWI device. */
@@ -2957,43 +2880,24 @@ __STATIC_INLINE void handle_data(uint8_t data) {
 }
 
 
-#if 0
+/**
+ * @brief Event handler for TWI events.
+ *
+ * This function is called by the TWI driver when a TWI event occurs.
+ *
+ * @param[in] p_event Pointer to the TWI event structure.
+ * @param[in] p_context Pointer to the context data.
+ */
 static void handle_twi_event(nrf_drv_twi_evt_t const * p_event, void * p_context) {
-
-  /* TWI event handler. */
-
-  switch (p_event->type) {
-    case NRF_DRV_TWI_EVT_DONE:
-      if (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_RX) {
-        handle_data(m_sample);
-      }
-      m_xfer_done = true;
-      NRF_LOG_INFO("TWI transfer completed.");
-      break;
-
-    default:
-      NRF_LOG_INFO("TWI event occured.");
-      break;
-  }
-}
-#else
-static void handle_twi_event(nrf_drv_twi_evt_t const * p_event, void * p_context) {
-
-  /* 
-    This function is an event handler for TWI events.
-    It is called by the TWI driver when an event occurs.
-  */
-
   /* Switch statement to handle different types of TWI events */
   switch (p_event->type) {
-
     /* This event indicates that a TWI transfer has completed */
     case NRF_DRV_TWI_EVT_DONE:
-
-      /* Check if the transfer was an RX transfer (i.e. receiving data) */
+      /*
+       * Check if the transfer was an RX transfer (i.e. receiving data)
+       * and handle the received data using the handle_data() function.
+       */
       if (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_RX) {
-
-        /* Handle the received data using the handle_data() function */
         handle_data(m_sample);
       }
 
@@ -3011,53 +2915,34 @@ static void handle_twi_event(nrf_drv_twi_evt_t const * p_event, void * p_context
       break;
   }
 }
-#endif
 
-#if 0
+
+/**
+ * @brief Initialize the TWI (I2C) peripheral with specific settings.
+ *
+ * This function initializes the TWI peripheral on the microcontroller with the specified settings.
+ */
 __STATIC_INLINE void init_twi(void) {
+    /* Define a TWI configuration struct with the desired settings */
+    const nrf_drv_twi_config_t twi_config = {
+        .scl                = NRF_TWI_SCL_PIN,              /**< Pin number for the SCL pin */
+        .sda                = NRF_TWI_SDA_PIN,              /**< Pin number for the SDA pin */
+        .frequency          = NRF_DRV_TWI_FREQ_100K,        /**< TWI frequency set to 100kHz */
+        .interrupt_priority = APP_IRQ_PRIORITY_HIGH,        /**< Interrupt priority set to high */
+        .clear_bus_init     = false                         /**< Do not clear bus during initialization */
+    };
 
-  /* Initialize TWI peripheral */
+    /* Initialize the TWI peripheral with the specified configuration and an event handler function */
+    ret_code_t err_code = nrf_drv_twi_init(&m_twi, &twi_config, handle_twi_event, NULL);
+    APP_ERROR_CHECK(err_code);
 
-  const nrf_drv_twi_config_t twi_config = {
-    .scl                = NRF_TWI_SCL_PIN,  /*27 */
-    .sda                = NRF_TWI_SDA_PIN,  /*26 */
-    .frequency          = NRF_DRV_TWI_FREQ_100K,
-    .interrupt_priority = APP_IRQ_PRIORITY_HIGH,
-    .clear_bus_init     = false
-  };
+    /* Enable the TWI peripheral */
+    nrf_drv_twi_enable(&m_twi);
 
-  ret_code_t err_code = nrf_drv_twi_init(&m_twi, &twi_config, handle_twi_event, NULL);
-  APP_ERROR_CHECK(err_code);
-
-  nrf_drv_twi_enable(&m_twi);
-
-  NRF_LOG_INFO("TWIM peripheral enabled.");
+    /* Log a message indicating that the TWI peripheral has been enabled */
+    NRF_LOG_INFO("TWIM peripheral enabled.");
 }
-#else
-__STATIC_INLINE void init_twi(void) {
 
-  /* This function initializes the TWI (I2C) peripheral on the microcontroller with specific settings. */
-
-  /* Define a TWI configuration struct with the desired settings */
-  const nrf_drv_twi_config_t twi_config = {
-    .scl                = NRF_TWI_SCL_PIN,              /* Pin number for the SCL pin             */
-    .sda                = NRF_TWI_SDA_PIN,              /* Pin number for the SDA pin             */
-    .frequency          = NRF_DRV_TWI_FREQ_100K,        /* TWI frequency set to 100kHz            */
-    .interrupt_priority = APP_IRQ_PRIORITY_HIGH,        /* Interrupt priority set to high         */
-    .clear_bus_init     = false                         /* Do not clear bus during initialization */
-  };
-
-  /* Initialize the TWI peripheral with the specified configuration and an event handler function */
-  ret_code_t err_code = nrf_drv_twi_init(&m_twi, &twi_config, handle_twi_event, NULL);
-  APP_ERROR_CHECK(err_code);
-
-  /* Enable the TWI peripheral */
-  nrf_drv_twi_enable(&m_twi);
-
-  /* Log a message indicating that the TWI peripheral has been enabled */
-  NRF_LOG_INFO("TWIM peripheral enabled.");
-}
-#endif
 
 #if USE_ADC != 0
 

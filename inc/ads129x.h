@@ -761,7 +761,7 @@ __STATIC_INLINE void ads_write_reg(uint8_t reg_no, uint8_t count, uint8_t *data)
 __STATIC_INLINE void ads_start_sending_cmd(uint8_t cmd);
 __STATIC_INLINE void ads_send_cmd(uint8_t cmd);
 
-__STATIC_INLINE uint32_t ads_start_writting_register(uint8_t reg_no, uint8_t count, uint8_t *data);
+__STATIC_INLINE uint32_t ads_start_writing_register(uint8_t reg_no, uint8_t count, uint8_t *data);
 
 
 #ifdef __cplusplus
